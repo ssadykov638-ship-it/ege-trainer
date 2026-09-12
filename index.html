@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ЕГЭ Билеты</title>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <main class="workspace">
+      <section class="phone-shell" aria-label="Прототип мобильного приложения">
+        <div class="app-screen">
+          <header class="topbar">
+            <button class="icon-button is-hidden" id="backButton" type="button" aria-label="Назад" title="Назад">‹</button>
+            <div class="title-block">
+              <p class="eyebrow" id="eyebrow">ЕГЭ · первая часть</p>
+              <h1 id="screenTitle">Выбор предмета</h1>
+            </div>
+            <button class="icon-button" id="resetAllButton" type="button" aria-label="Сбросить прогресс" title="Сбросить прогресс">↻</button>
+          </header>
+
+          <section class="hero" id="hero">
+            <img src="./assets/study-header.png" alt="">
+            <div class="hero-overlay">
+              <div>
+                <span>Закрыто</span>
+                <strong id="doneValue">0</strong>
+              </div>
+              <div>
+                <span>Точность</span>
+                <strong id="accuracyValue">0%</strong>
+              </div>
+            </div>
+          </section>
+
+          <section class="screen" id="subjectScreen" aria-label="Выбор предмета">
+            <div class="screen-grid" id="subjectList"></div>
+          </section>
+
+          <section class="screen is-hidden" id="sourceScreen" aria-label="Выбор источника">
+            <div class="screen-grid" id="sourceList"></div>
+          </section>
+
+          <section class="screen is-hidden" id="variantScreen" aria-label="Выбор варианта">
+            <div class="variant-list" id="variantList"></div>
+          </section>
+
+          <section class="screen is-hidden" id="examScreen" aria-label="Прохождение варианта">
+            <div class="exam-head">
+              <span id="variantMeta"></span>
+              <strong id="questionCount"></strong>
+            </div>
+            <div class="progress-track" aria-label="Прогресс варианта">
+              <div class="progress-fill" id="variantProgress"></div>
+            </div>
+            <div class="question-nav" id="questionNav" aria-label="Навигация по заданиям"></div>
+            <article class="task-card">
+              <p class="task-type" id="taskType"></p>
+              <h2 id="questionTitle"></h2>
+              <div class="options" id="options"></div>
+            </article>
+            <div class="actions">
+              <button class="ghost-button" id="restartVariantButton" type="button">Заново</button>
+              <button class="ghost-button" id="skipButton" type="button">Пропустить</button>
+              <button class="primary-button" id="nextButton" type="button" disabled>Дальше</button>
+            </div>
+          </section>
+
+          <section class="screen is-hidden" id="resultScreen" aria-label="Итог варианта">
+            <article class="result-card">
+              <p class="task-type" id="resultMeta"></p>
+              <h2 id="resultTitle"></h2>
+              <p id="resultText"></p>
+            </article>
+            <div class="review-list" id="reviewList"></div>
+            <div class="actions">
+              <button class="ghost-button" id="repeatButton" type="button">Повторить</button>
+              <button class="primary-button" id="nextVariantButton" type="button">Следующий</button>
+            </div>
+          </section>
+
+          <section class="screen is-hidden" id="imageScreen" aria-label="Просмотр изображения">
+            <figure class="image-viewer">
+              <img id="viewerImage" src="" alt="">
+            </figure>
+          </section>
+
+          <footer class="source-note">
+            <span id="sourceNote">ФИПИ открыт. Личные PDF-импорты хранятся локально и требуют ручной сверки OCR.</span>
+          </footer>
+        </div>
+      </section>
+    </main>
+    <script src="./app.js"></script>
+  </body>
+</html>
