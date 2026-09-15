@@ -1,5 +1,5 @@
 const STORAGE_KEY = "ege-open-access-progress-v1";
-const APP_VERSION = "20260915-8";
+const APP_VERSION = "20260915-9";
 const ACCESS_KEY = "ege-access-session-v1";
 const AUTH_DB_KEY = "ege-auth-db-v1";
 const DEVICE_KEY = "ege-device-id-v1";
@@ -58,6 +58,7 @@ const state = {
   cloudHomework: [],
   cloudStudents: [],
   cloudSubmissions: [],
+  variantNotice: "",
   authMode: "login",
   access: initialAccess
 };
@@ -318,6 +319,7 @@ function isControlLocked(variant) {
 
 function assignHomework(variant) {
   if (!isTeacher()) return;
+  state.variantNotice = "";
   if (cloudStore) {
     cloudStore.assignHomework({
       subjectId: state.subjectId,
@@ -327,8 +329,12 @@ function assignHomework(variant) {
       sourceTitle: currentSource().title,
       variantTitle: variant.title,
       assignedBy: state.access.id
-    }).then(refreshCloudData).then(renderVariants).catch((error) => {
-      alert(`Supabase: ${error.message || "не удалось добавить ДЗ"}`);
+    }).then(refreshCloudData).then(() => {
+      state.variantNotice = "";
+      renderVariants();
+    }).catch((error) => {
+      state.variantNotice = `Supabase: ${error.message || "не удалось добавить ДЗ"}`;
+      renderVariants();
     });
     return;
   }
@@ -352,12 +358,17 @@ function removeHomework(variant) {
   if (!isTeacher()) return;
   const homework = homeworkForVariant(variant);
   if (!homework) return;
+  state.variantNotice = "";
   if (cloudStore) {
     cloudStore.removeHomework({
       homeworkId: homework.id,
       variantId: variant.id
-    }).then(refreshCloudData).then(renderVariants).catch((error) => {
-      alert(`Supabase: ${error.message || "не удалось убрать ДЗ"}`);
+    }).then(refreshCloudData).then(() => {
+      state.variantNotice = "";
+      renderVariants();
+    }).catch((error) => {
+      state.variantNotice = `Supabase: ${error.message || "не удалось убрать ДЗ"}`;
+      renderVariants();
     });
     return;
   }
@@ -709,6 +720,12 @@ function renderVariants() {
   nodes.screenTitle.textContent = "Варианты";
   nodes.resetAllButton.classList.remove("is-hidden");
   nodes.variantList.innerHTML = "";
+  if (state.variantNotice) {
+    const notice = document.createElement("p");
+    notice.className = "inline-notice";
+    notice.textContent = state.variantNotice;
+    nodes.variantList.appendChild(notice);
+  }
   currentSource().variants.forEach((variant, index) => {
     const progress = variantProgress(variant);
     const answered = Object.keys(progress.answers).length;
