@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>ЕГЭ Билеты</title>
-    <link rel="stylesheet" href="./styles.css?v=20260915-5">
+    <link rel="stylesheet" href="./styles.css?v=20260915-6">
   </head>
   <body>
     <main class="workspace">
@@ -36,8 +36,12 @@
           <section class="screen" id="accessScreen" aria-label="Регистрация и вход">
             <article class="task-card access-card">
               <p class="task-type">Аккаунт</p>
-              <h2>Регистрация / Вход</h2>
-              <label class="short-row">
+              <h2 id="authCardTitle">Вход</h2>
+              <div class="auth-tabs" role="tablist" aria-label="Режим аккаунта">
+                <button class="auth-tab is-active" id="authLoginModeButton" type="button" role="tab" aria-selected="true">Вход</button>
+                <button class="auth-tab" id="authRegisterModeButton" type="button" role="tab" aria-selected="false">Регистрация</button>
+              </div>
+              <label class="short-row is-hidden" id="studentNameRow">
                 <span>Имя</span>
                 <input id="studentNameInput" type="text" autocomplete="name" placeholder="Например: Иван">
               </label>
@@ -134,10 +138,10 @@
         </div>
       </section>
     </main>
-    <script src="./supabase-config.js?v=20260915-5"></script>
-    <script src="./supabase-store.js?v=20260915-5"></script>
+    <script src="./supabase-config.js?v=20260915-6"></script>
+    <script src="./supabase-store.js?v=20260915-6"></script>
     <script src="./local-interactive.js?v=20260915-5"></script>
-    <script src="./app.js?v=20260915-5"></script>
-    <script src="./patch.js?v=20260915-5"></script>
+    <script src="./app.js?v=20260915-6"></script>
+    <script src="./patch.js?v=20260915-6"></script>
   </body>
 </html>

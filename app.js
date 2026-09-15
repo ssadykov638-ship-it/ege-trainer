@@ -1,5 +1,5 @@
 const STORAGE_KEY = "ege-open-access-progress-v1";
-const APP_VERSION = "20260915-5";
+const APP_VERSION = "20260915-6";
 const ACCESS_KEY = "ege-access-session-v1";
 const AUTH_DB_KEY = "ege-auth-db-v1";
 const DEVICE_KEY = "ege-device-id-v1";
@@ -58,6 +58,7 @@ const state = {
   cloudHomework: [],
   cloudStudents: [],
   cloudSubmissions: [],
+  authMode: "login",
   access: initialAccess
 };
 
@@ -105,6 +106,10 @@ const nodes = {
   doneValue: document.querySelector("#doneValue"),
   accuracyValue: document.querySelector("#accuracyValue"),
   sourceNote: document.querySelector("#sourceNote"),
+  authCardTitle: document.querySelector("#authCardTitle"),
+  authLoginModeButton: document.querySelector("#authLoginModeButton"),
+  authRegisterModeButton: document.querySelector("#authRegisterModeButton"),
+  studentNameRow: document.querySelector("#studentNameRow"),
   studentNameInput: document.querySelector("#studentNameInput"),
   loginInput: document.querySelector("#loginInput"),
   accessCodeInput: document.querySelector("#accessCodeInput"),
@@ -199,6 +204,22 @@ function normalizeLogin(value) {
 
 function isValidEmail(value) {
   return EMAIL_PATTERN.test(value);
+}
+
+function setAuthMode(mode) {
+  state.authMode = mode === "register" ? "register" : "login";
+  const isRegister = state.authMode === "register";
+  nodes.authCardTitle.textContent = isRegister ? "Регистрация" : "Вход";
+  nodes.screenTitle.textContent = isRegister ? "Регистрация" : "Вход";
+  nodes.studentNameRow.classList.toggle("is-hidden", !isRegister);
+  nodes.registerButton.classList.toggle("is-hidden", !isRegister);
+  nodes.accessSubmitButton.classList.toggle("is-hidden", isRegister);
+  nodes.accessCodeInput.autocomplete = isRegister ? "new-password" : "current-password";
+  nodes.authLoginModeButton.classList.toggle("is-active", !isRegister);
+  nodes.authRegisterModeButton.classList.toggle("is-active", isRegister);
+  nodes.authLoginModeButton.setAttribute("aria-selected", String(!isRegister));
+  nodes.authRegisterModeButton.setAttribute("aria-selected", String(isRegister));
+  nodes.accessError.textContent = "";
 }
 
 function makeId(prefix) {
@@ -588,8 +609,8 @@ function render() {
 
 function renderAccess() {
   nodes.eyebrow.textContent = "ЕГЭ · аккаунт";
-  nodes.screenTitle.textContent = "Регистрация";
   nodes.resetAllButton.classList.add("is-hidden");
+  setAuthMode(state.authMode);
 }
 
 function renderSubjects() {
@@ -1184,10 +1205,15 @@ function completeCurrentScanVariant() {
 }
 
 nodes.backButton.addEventListener("click", goBack);
+nodes.authLoginModeButton.addEventListener("click", () => setAuthMode("login"));
+nodes.authRegisterModeButton.addEventListener("click", () => setAuthMode("register"));
 nodes.registerButton.addEventListener("click", registerAccount);
 nodes.accessSubmitButton.addEventListener("click", loginWithAccess);
 nodes.accessCodeInput.addEventListener("keydown", (event) => {
-  if (event.key === "Enter") loginWithAccess();
+  if (event.key === "Enter") {
+    if (state.authMode === "register") registerAccount();
+    else loginWithAccess();
+  }
 });
 nodes.studentNameInput.addEventListener("keydown", (event) => {
   if (event.key === "Enter") nodes.loginInput.focus();

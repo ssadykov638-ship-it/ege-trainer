@@ -119,6 +119,14 @@ on public.group_students for all
 using (public.is_teacher())
 with check (public.is_teacher());
 
+drop policy if exists "group_students_insert_self_default" on public.group_students;
+create policy "group_students_insert_self_default"
+on public.group_students for insert
+with check (
+  student_id = auth.uid()
+  and group_id = '00000000-0000-0000-0000-000000000001'
+);
+
 drop policy if exists "homework_select_authenticated" on public.homework;
 create policy "homework_select_authenticated"
 on public.homework for select
@@ -160,3 +168,12 @@ with check (user_id = auth.uid());
 insert into public.groups (id, title)
 values ('00000000-0000-0000-0000-000000000001', 'Основная группа')
 on conflict (id) do nothing;
+
+grant usage on schema public to anon, authenticated;
+grant execute on function public.is_teacher() to authenticated;
+grant select, insert, update on public.profiles to authenticated;
+grant select on public.groups to authenticated;
+grant select, insert, update on public.group_students to authenticated;
+grant select, insert, update on public.homework to authenticated;
+grant select, insert, update on public.progress to authenticated;
+grant select, insert, update on public.submissions to authenticated;
