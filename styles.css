@@ -216,6 +216,22 @@ h2 {
   opacity: 0.64;
 }
 
+.personal-import-card {
+  border-color: rgba(30, 119, 109, 0.34);
+  background: #f2fbf8;
+}
+
+.teacher-entry {
+  border-color: rgba(227, 109, 85, 0.35);
+  background: #fff7f1;
+}
+
+.variant-card:disabled,
+.ghost-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
 .badge-line {
   display: flex;
   flex-wrap: wrap;
@@ -293,10 +309,24 @@ h2 {
   margin-top: 6px;
 }
 
+.task-card h2 {
+  white-space: pre-line;
+  font-size: 20px;
+  line-height: 1.22;
+}
+
 .options {
   display: grid;
   gap: 9px;
   margin-top: 15px;
+}
+
+.options:has(.option.is-number-only) {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.options:has(.option.is-number-only) .task-media {
+  grid-column: 1 / -1;
 }
 
 .task-media {
@@ -344,6 +374,15 @@ h2 {
   text-align: left;
 }
 
+.option.is-number-only {
+  min-height: 54px;
+  justify-content: center;
+}
+
+.option.is-number-only .option-marker {
+  margin: 0;
+}
+
 .option-marker {
   width: 30px;
   height: 30px;
@@ -361,7 +400,8 @@ h2 {
 }
 
 .match-row,
-.short-row {
+.short-row,
+.switch-row {
   display: grid;
   gap: 8px;
   padding: 11px;
@@ -371,10 +411,32 @@ h2 {
 }
 
 .match-row span,
-.short-row span {
+.short-row span,
+.switch-row span {
   font-size: 14px;
   line-height: 1.3;
   font-weight: 700;
+}
+
+.switch-row {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  margin-top: 14px;
+}
+
+.switch-row small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.switch-row input {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--teal);
 }
 
 .match-row select,
@@ -386,6 +448,76 @@ h2 {
   background: #ffffff;
   color: var(--ink);
   padding: 0 10px;
+}
+
+.digit-answer {
+  display: grid;
+  gap: 12px;
+}
+
+.access-card {
+  display: grid;
+  gap: 12px;
+}
+
+.access-card h2 {
+  margin-bottom: 2px;
+}
+
+.access-submit {
+  width: 100%;
+}
+
+.access-error {
+  min-height: 18px;
+  color: var(--bad);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.teacher-report {
+  max-height: 560px;
+}
+
+.digit-display {
+  min-height: 48px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: #ffffff;
+  display: grid;
+  place-items: center;
+  padding: 8px 12px;
+  color: var(--ink);
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.digit-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.digit-button {
+  min-height: 48px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: #fffdf9;
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.digit-button:active {
+  transform: translateY(1px);
+  border-color: var(--teal);
+  background: var(--teal-soft);
+}
+
+.digit-tools {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
 }
 
 .actions {
@@ -463,6 +595,33 @@ h2 {
   color: var(--muted);
   font-size: 13px;
   line-height: 1.35;
+}
+
+.scan-pages {
+  display: grid;
+  gap: 14px;
+  max-height: 680px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.scan-page {
+  margin: 0;
+}
+
+.scan-page figcaption {
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.scan-page img {
+  width: 100%;
+  display: block;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #ffffff;
 }
 
 .source-note {

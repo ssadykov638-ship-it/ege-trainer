@@ -1,4 +1,11 @@
 const STORAGE_KEY = "ege-open-access-progress-v1";
+const APP_VERSION = "20260915-1";
+const ACCESS_KEY = "ege-access-session-v1";
+const DEVICE_KEY = "ege-device-id-v1";
+const CONTROL_MODE_KEY = "ege-control-mode-v1";
+const SUBMISSIONS_KEY = "ege-submissions-v1";
+const ACCESS_CODES = Array.from({ length: 30 }, (_, index) => `EGE-${String(index + 1).padStart(3, "0")}`);
+const TEACHER_CODE = "TEACHER-2026";
 
 const subjects = {
   social: {
@@ -9,11 +16,11 @@ const subjects = {
         id: "kotova-liskova-personal-2026-social",
         title: "Котова-Лискова · личный импорт",
         year: "2026",
-        description: "Черновик из загруженного PDF: входная диагностика, часть 1",
+        description: "Черновик из загруженного PDF: тестовый вариант, часть 1",
         variants: [
           {
             id: "kotova-liskova-personal-2026-social-v1",
-            title: "Входная диагностика",
+            title: "Тестовый вариант",
             questions: personalKotovaLiskovaFirstScan()
           }
         ]
@@ -34,15 +41,19 @@ const subjects = {
   }
 };
 
+installLocalSources();
+
 const state = {
-  screen: "subjects",
+  screen: loadAccess() ? "subjects" : "access",
   subjectId: null,
   sourceId: null,
   variantIndex: 0,
   questionIndex: 0,
   selected: null,
   matching: {},
-  progress: loadProgress()
+  progress: loadProgress(),
+  access: loadAccess(),
+  controlMode: loadControlMode()
 };
 
 const nodes = {
@@ -52,12 +63,15 @@ const nodes = {
   screenTitle: document.querySelector("#screenTitle"),
   hero: document.querySelector("#hero"),
   screens: {
+    access: document.querySelector("#accessScreen"),
     subjects: document.querySelector("#subjectScreen"),
     sources: document.querySelector("#sourceScreen"),
     variants: document.querySelector("#variantScreen"),
     exam: document.querySelector("#examScreen"),
     result: document.querySelector("#resultScreen"),
-    image: document.querySelector("#imageScreen")
+    scan: document.querySelector("#scanScreen"),
+    image: document.querySelector("#imageScreen"),
+    teacher: document.querySelector("#teacherScreen")
   },
   subjectList: document.querySelector("#subjectList"),
   sourceList: document.querySelector("#sourceList"),
@@ -76,12 +90,22 @@ const nodes = {
   resultTitle: document.querySelector("#resultTitle"),
   resultText: document.querySelector("#resultText"),
   reviewList: document.querySelector("#reviewList"),
+  scanMeta: document.querySelector("#scanMeta"),
+  scanCount: document.querySelector("#scanCount"),
+  scanPages: document.querySelector("#scanPages"),
+  completeScanVariantButton: document.querySelector("#completeScanVariantButton"),
   repeatButton: document.querySelector("#repeatButton"),
   nextVariantButton: document.querySelector("#nextVariantButton"),
   viewerImage: document.querySelector("#viewerImage"),
   doneValue: document.querySelector("#doneValue"),
   accuracyValue: document.querySelector("#accuracyValue"),
-  sourceNote: document.querySelector("#sourceNote")
+  sourceNote: document.querySelector("#sourceNote"),
+  studentNameInput: document.querySelector("#studentNameInput"),
+  accessCodeInput: document.querySelector("#accessCodeInput"),
+  accessSubmitButton: document.querySelector("#accessSubmitButton"),
+  accessError: document.querySelector("#accessError"),
+  controlModeToggle: document.querySelector("#controlModeToggle"),
+  teacherReport: document.querySelector("#teacherReport")
 };
 
 function source(id, title, year, description, questions) {
@@ -96,6 +120,88 @@ function source(id, title, year, description, questions) {
       questions: rotate(questions, number - 1).map((question) => ({ ...question }))
     }))
   };
+}
+
+function installLocalSources() {
+  const localSources = [
+    ...(window.localInteractiveSources || [])
+  ];
+  localSources.forEach((sourceItem) => {
+    const exists = subjects.social.sources.some((existing) => existing.id === sourceItem.id);
+    if (!exists) subjects.social.sources.unshift(sourceItem);
+  });
+}
+
+function getDeviceId() {
+  let id = localStorage.getItem(DEVICE_KEY);
+  if (!id) {
+    id = `device-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+    localStorage.setItem(DEVICE_KEY, id);
+  }
+  return id;
+}
+
+function loadAccess() {
+  try {
+    return JSON.parse(localStorage.getItem(ACCESS_KEY)) || null;
+  } catch {
+    return null;
+  }
+}
+
+function saveAccess(access) {
+  state.access = access;
+  localStorage.setItem(ACCESS_KEY, JSON.stringify(access));
+}
+
+function loadControlMode() {
+  return localStorage.getItem(CONTROL_MODE_KEY) === "on";
+}
+
+function saveControlMode(value) {
+  state.controlMode = Boolean(value);
+  localStorage.setItem(CONTROL_MODE_KEY, state.controlMode ? "on" : "off");
+}
+
+function loadSubmissions() {
+  try {
+    return JSON.parse(localStorage.getItem(SUBMISSIONS_KEY)) || [];
+  } catch {
+    return [];
+  }
+}
+
+function saveSubmissions(submissions) {
+  localStorage.setItem(SUBMISSIONS_KEY, JSON.stringify(submissions));
+}
+
+function isTeacher() {
+  return state.access?.role === "teacher";
+}
+
+function isControlLocked(variant) {
+  return state.controlMode && !isTeacher() && Boolean(variantProgress(variant).completed);
+}
+
+function loginWithAccess() {
+  const name = nodes.studentNameInput.value.trim();
+  const code = nodes.accessCodeInput.value.trim().toUpperCase();
+  nodes.accessError.textContent = "";
+  if (code === TEACHER_CODE) {
+    saveAccess({ role: "teacher", name: name || "Учитель", code, deviceId: getDeviceId(), createdAt: new Date().toISOString() });
+    show("subjects");
+    return;
+  }
+  if (!ACCESS_CODES.includes(code)) {
+    nodes.accessError.textContent = "Код не найден. Для теста используйте EGE-001 ... EGE-030.";
+    return;
+  }
+  if (!name) {
+    nodes.accessError.textContent = "Введите имя ученика.";
+    return;
+  }
+  saveAccess({ role: "student", name, code, deviceId: getDeviceId(), createdAt: new Date().toISOString() });
+  show("subjects");
 }
 
 function single(text, options, correct, explanation) {
@@ -114,8 +220,18 @@ function short(text, correct, explanation) {
   return { type: "short", text, correct, explanation };
 }
 
+function digits(text, correct, explanation) {
+  return { type: "digits", text, correct, explanation };
+}
+
 function withImage(question, image, alt) {
   return { ...question, image, alt };
+}
+
+function assetUrl(src) {
+  if (!src || src.startsWith("data:") || /^https?:\/\//.test(src)) return src;
+  const separator = src.includes("?") ? "&" : "?";
+  return `${src}${separator}v=${APP_VERSION}`;
 }
 
 function socialQuestions() {
@@ -211,6 +327,14 @@ function currentQuestion() {
   return currentVariant().questions[state.questionIndex];
 }
 
+function isScanVariant(variant = currentVariant()) {
+  return Array.isArray(variant.pages);
+}
+
+function variantLength(variant) {
+  return isScanVariant(variant) ? variant.pages.length : variant.questions.length;
+}
+
 function variantProgress(variant = currentVariant()) {
   if (!state.progress[variant.id]) {
     state.progress[variant.id] = { completed: false, best: 0, answers: {}, skipped: {} };
@@ -222,24 +346,43 @@ function variantProgress(variant = currentVariant()) {
 function show(screen) {
   state.screen = screen;
   Object.entries(nodes.screens).forEach(([name, node]) => node.classList.toggle("is-hidden", name !== screen));
-  nodes.backButton.classList.toggle("is-hidden", screen === "subjects");
-  nodes.hero.classList.toggle("is-hidden", screen === "exam" || screen === "result" || screen === "image");
+  nodes.backButton.classList.toggle("is-hidden", screen === "access" || screen === "subjects");
+  nodes.hero.classList.toggle("is-hidden", screen === "access" || screen === "exam" || screen === "result" || screen === "scan" || screen === "image" || screen === "teacher");
   render();
 }
 
 function render() {
   renderStats();
+  renderSourceNote();
+  if (state.screen === "access") renderAccess();
   if (state.screen === "subjects") renderSubjects();
   if (state.screen === "sources") renderSources();
   if (state.screen === "variants") renderVariants();
   if (state.screen === "exam") renderExam();
   if (state.screen === "result") renderResult();
+  if (state.screen === "scan") renderScan();
+  if (state.screen === "teacher") renderTeacher();
+}
+
+function renderAccess() {
+  nodes.eyebrow.textContent = "ЕГЭ · закрытая тренировка";
+  nodes.screenTitle.textContent = "Вход";
+  nodes.resetAllButton.classList.add("is-hidden");
 }
 
 function renderSubjects() {
   nodes.eyebrow.textContent = "ЕГЭ · первая часть";
   nodes.screenTitle.textContent = "Выбор предмета";
+  nodes.resetAllButton.classList.toggle("is-hidden", state.controlMode && !isTeacher());
   nodes.subjectList.innerHTML = "";
+  if (isTeacher()) {
+    const teacherCard = document.createElement("button");
+    teacherCard.className = "card teacher-entry";
+    teacherCard.type = "button";
+    teacherCard.innerHTML = `<div><strong>Режим учителя</strong><span>Контрольный режим и журнал результатов на этом устройстве</span><div class="badge-line"><b class="badge">${state.controlMode ? "контроль включен" : "свободная тренировка"}</b></div></div><i>›</i>`;
+    teacherCard.addEventListener("click", () => show("teacher"));
+    nodes.subjectList.appendChild(teacherCard);
+  }
   Object.entries(subjects).forEach(([id, subject]) => {
     const completed = subject.sources.flatMap((sourceItem) => sourceItem.variants).filter((variant) => variantProgress(variant).completed).length;
     const card = document.createElement("button");
@@ -252,11 +395,24 @@ function renderSubjects() {
     });
     nodes.subjectList.appendChild(card);
   });
+  const logoutCard = document.createElement("button");
+  logoutCard.className = "card";
+  logoutCard.type = "button";
+  logoutCard.innerHTML = `<div><strong>Сменить пользователя</strong><span>Ввести другой код ученика или учителя</span><div class="badge-line"><b class="badge">${state.access?.code || "без кода"}</b></div></div><i>›</i>`;
+  logoutCard.addEventListener("click", () => {
+    state.access = null;
+    localStorage.removeItem(ACCESS_KEY);
+    nodes.studentNameInput.value = "";
+    nodes.accessCodeInput.value = "";
+    show("access");
+  });
+  nodes.subjectList.appendChild(logoutCard);
 }
 
 function renderSources() {
   nodes.eyebrow.textContent = currentSubject().title;
   nodes.screenTitle.textContent = "Источник";
+  nodes.resetAllButton.classList.toggle("is-hidden", state.controlMode && !isTeacher());
   nodes.sourceList.innerHTML = "";
   currentSubject().sources.forEach((sourceItem) => {
     const completed = sourceItem.variants.filter((variant) => variantProgress(variant).completed).length;
@@ -276,22 +432,56 @@ function renderSources() {
 function renderVariants() {
   nodes.eyebrow.textContent = currentSource().title;
   nodes.screenTitle.textContent = "Варианты";
+  nodes.resetAllButton.classList.toggle("is-hidden", state.controlMode && !isTeacher());
   nodes.variantList.innerHTML = "";
   currentSource().variants.forEach((variant, index) => {
     const progress = variantProgress(variant);
     const answered = Object.keys(progress.answers).length;
+    const length = variantLength(variant);
+    const statusText = isScanVariant(variant) ? `${length} ${pageWord(length)} первой части` : `${answered}/${length} заданий`;
+    const locked = isControlLocked(variant);
     const card = document.createElement("button");
-    card.className = "variant-card";
+    card.className = `variant-card${locked ? " is-locked" : ""}`;
     card.type = "button";
-    card.innerHTML = `<div><strong>${variant.title}</strong><span>${answered}/${variant.questions.length} заданий</span><div class="progress-track"><div class="progress-fill" style="width:${answered / variant.questions.length * 100}%"></div></div><div class="badge-line"><b class="badge">${progress.completed ? `лучший ${progress.best}` : "не завершен"}</b></div></div><i>›</i>`;
+    card.disabled = locked;
+    card.innerHTML = `<div><strong>${variant.title}</strong><span>${statusText}</span><div class="progress-track"><div class="progress-fill" style="width:${isScanVariant(variant) ? (progress.completed ? 100 : 0) : answered / length * 100}%"></div></div><div class="badge-line"><b class="badge">${locked ? "попытка завершена" : progress.completed ? (isScanVariant(variant) ? "решен" : `лучший ${progress.best}`) : "не завершен"}</b></div></div><i>${locked ? "✓" : "›"}</i>`;
     card.addEventListener("click", () => {
+      if (locked) return;
       state.variantIndex = index;
+      if (isScanVariant(variant)) {
+        show("scan");
+        return;
+      }
       const next = variant.questions.findIndex((_, questionIndex) => !progress.answers[questionIndex]);
       state.questionIndex = next === -1 ? 0 : next;
       clearDraft();
       show(progress.completed && next === -1 ? "result" : "exam");
     });
     nodes.variantList.appendChild(card);
+  });
+}
+
+function pageWord(count) {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod10 === 1 && mod100 !== 11) return "страница";
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return "страницы";
+  return "страниц";
+}
+
+function renderScan() {
+  const variant = currentVariant();
+  const progress = variantProgress();
+  nodes.eyebrow.textContent = currentSource().title;
+  nodes.screenTitle.textContent = variant.title;
+  nodes.scanMeta.textContent = progress.completed ? "Отмечен как решенный" : "Первая часть, страницы варианта";
+  nodes.scanCount.textContent = `${variant.pages.length} стр.`;
+  nodes.scanPages.innerHTML = "";
+  variant.pages.forEach((page, index) => {
+    const figure = document.createElement("figure");
+    figure.className = "scan-page";
+    figure.innerHTML = `<figcaption>${variant.title} · стр. ${index + 1}</figcaption><img src="${page}" alt="${variant.title}, страница ${index + 1}" loading="lazy">`;
+    nodes.scanPages.appendChild(figure);
   });
 }
 
@@ -311,6 +501,7 @@ function renderExam() {
   nodes.questionTitle.textContent = question.text;
   nodes.nextButton.textContent = state.questionIndex === variant.questions.length - 1 ? "Завершить" : "Дальше";
   nodes.nextButton.disabled = !hasAnswer(question);
+  nodes.restartVariantButton.disabled = state.controlMode && !isTeacher();
   renderQuestionNav(variant, progress);
   renderQuestionInput(question);
 }
@@ -338,17 +529,18 @@ function renderQuestionNav(variant, progress) {
 function renderQuestionInput(question) {
   nodes.options.innerHTML = "";
   if (question.image) {
+    const imageSrc = assetUrl(question.image);
     const figure = document.createElement("figure");
     figure.className = "task-media";
     figure.setAttribute("role", "button");
     figure.setAttribute("tabindex", "0");
-    figure.setAttribute("aria-label", "Открыть диаграмму крупно");
-    figure.innerHTML = `<img src="${question.image}" alt="${question.alt || ""}">`;
+    figure.setAttribute("aria-label", "Открыть материал крупно");
+    figure.innerHTML = `<img src="${imageSrc}" alt="${question.alt || ""}">`;
     const openImage = () => {
-      nodes.viewerImage.src = question.image;
+      nodes.viewerImage.src = imageSrc;
       nodes.viewerImage.alt = question.alt || "";
       nodes.eyebrow.textContent = `Задание ${state.questionIndex + 1}`;
-      nodes.screenTitle.textContent = "Диаграмма";
+      nodes.screenTitle.textContent = "Материал";
       show("image");
     };
     figure.addEventListener("click", openImage);
@@ -392,12 +584,57 @@ function renderQuestionInput(question) {
     return;
   }
 
+  if (question.type === "digits") {
+    const panel = document.createElement("div");
+    panel.className = "digit-answer";
+    const value = typeof state.selected === "string" ? state.selected : "";
+    panel.innerHTML = `<div class="digit-display" aria-label="Текущий ответ">${value || "Нажмите цифры"}</div>`;
+    const grid = document.createElement("div");
+    grid.className = "digit-grid";
+    "123456789".split("").forEach((digitValue) => {
+      const button = document.createElement("button");
+      button.className = "digit-button";
+      button.type = "button";
+      button.textContent = digitValue;
+      button.addEventListener("click", () => {
+        state.selected = `${typeof state.selected === "string" ? state.selected : ""}${digitValue}`;
+        renderExam();
+      });
+      grid.appendChild(button);
+    });
+    const backspace = document.createElement("button");
+    backspace.className = "ghost-button";
+    backspace.type = "button";
+    backspace.textContent = "Стереть";
+    backspace.addEventListener("click", () => {
+      state.selected = value.slice(0, -1);
+      renderExam();
+    });
+    const clear = document.createElement("button");
+    clear.className = "ghost-button";
+    clear.type = "button";
+    clear.textContent = "Очистить";
+    clear.addEventListener("click", () => {
+      state.selected = "";
+      renderExam();
+    });
+    const tools = document.createElement("div");
+    tools.className = "digit-tools";
+    tools.append(backspace, clear);
+    panel.append(grid, tools);
+    nodes.options.appendChild(panel);
+    return;
+  }
+
   question.options.forEach((option, index) => {
     const button = document.createElement("button");
     const selected = question.type === "multi" ? state.selected.includes(index) : state.selected === index;
-    button.className = `option${selected ? " is-selected" : ""}`;
+    const numericOnly = question.image && /^\d+$/.test(String(option).trim());
+    button.className = `option${numericOnly ? " is-number-only" : ""}${selected ? " is-selected" : ""}`;
     button.type = "button";
-    button.innerHTML = `<span class="option-marker">${index + 1}</span><span>${option}</span>`;
+    button.innerHTML = numericOnly
+      ? `<span class="option-marker">${index + 1}</span>`
+      : `<span class="option-marker">${index + 1}</span><span>${option}</span>`;
     button.addEventListener("click", () => {
       if (question.type === "multi") {
         const set = new Set(state.selected);
@@ -416,19 +653,29 @@ function renderResult() {
   const variant = currentVariant();
   const progress = variantProgress();
   const correct = countCorrect(variant, progress);
-  const mistakes = variant.questions.length - correct;
+  const mistakes = variantLength(variant) - correct;
   nodes.eyebrow.textContent = currentSource().title;
   nodes.screenTitle.textContent = "Итог";
   nodes.resultMeta.textContent = `${currentSubject().title} · ${currentSource().year} · ${variant.title}`;
-  nodes.resultTitle.textContent = `${correct}/${variant.questions.length}`;
+  nodes.resultTitle.textContent = `${correct}/${variantLength(variant)}`;
   nodes.resultText.textContent = mistakes === 0 ? "Вариант закрыт идеально." : `Ошибок: ${mistakes}. Ниже разбор только проблемных заданий.`;
+  nodes.repeatButton.disabled = state.controlMode && !isTeacher();
+  nodes.repeatButton.textContent = state.controlMode && !isTeacher() ? "Попытка закрыта" : "Повторить";
   nodes.reviewList.innerHTML = "";
   variant.questions.forEach((question, index) => {
     const answer = progress.answers[index];
     if (isCorrect(question, answer)) return;
     const item = document.createElement("article");
     item.className = "review-item";
-    item.innerHTML = `<strong>${index + 1}. ${question.text}</strong><span>Ответ: ${formatAnswer(question, answer)}</span><span>Правильно: ${formatCorrect(question)}</span><p>${question.explanation}</p>`;
+    const title = document.createElement("strong");
+    title.textContent = `${index + 1}. ${question.text}`;
+    const userAnswer = document.createElement("span");
+    userAnswer.textContent = `Ответ: ${formatAnswer(question, answer)}`;
+    const correctAnswer = document.createElement("span");
+    correctAnswer.textContent = `Правильно: ${formatCorrect(question)}`;
+    const explanation = document.createElement("p");
+    explanation.textContent = question.explanation;
+    item.append(title, userAnswer, correctAnswer, explanation);
     nodes.reviewList.appendChild(item);
   });
   if (!nodes.reviewList.children.length) {
@@ -443,19 +690,56 @@ function renderStats() {
   const values = Object.entries(state.progress).reduce((acc, [variantId, progress]) => {
     const variant = findVariant(variantId);
     if (!variant || !progress.completed) return acc;
+    if (isScanVariant(variant)) {
+      acc.done += 1;
+      return acc;
+    }
     const correct = countCorrect(variant, progress);
     acc.done += 1;
     acc.correct += correct;
-    acc.total += variant.questions.length;
+    acc.total += variantLength(variant);
     return acc;
   }, { done: 0, correct: 0, total: 0 });
   nodes.doneValue.textContent = String(values.done);
   nodes.accuracyValue.textContent = values.total ? `${Math.round(values.correct / values.total * 100)}%` : "0%";
 }
 
+function renderSourceNote() {
+  if (!state.access) {
+    nodes.sourceNote.textContent = "Демо-закрытие работает локально. Настоящая привязка ключей требует сервер.";
+    return;
+  }
+  const mode = state.controlMode ? "контрольный режим" : "свободная тренировка";
+  nodes.sourceNote.textContent = `${state.access.name} · ${mode} · данные этого прототипа хранятся в браузере.`;
+}
+
+function renderTeacher() {
+  nodes.eyebrow.textContent = "ЕГЭ · админ";
+  nodes.screenTitle.textContent = "Учитель";
+  nodes.resetAllButton.classList.remove("is-hidden");
+  nodes.controlModeToggle.checked = state.controlMode;
+  const submissions = loadSubmissions();
+  nodes.teacherReport.innerHTML = "";
+  if (!submissions.length) {
+    const empty = document.createElement("article");
+    empty.className = "review-item";
+    empty.innerHTML = "<strong>Пока нет завершенных работ</strong><p>Когда ученик закончит вариант на этом устройстве, запись появится здесь.</p>";
+    nodes.teacherReport.appendChild(empty);
+    return;
+  }
+  submissions.slice().reverse().forEach((submission) => {
+    const item = document.createElement("article");
+    item.className = "review-item";
+    const date = new Date(submission.at).toLocaleString("ru-RU", { dateStyle: "short", timeStyle: "short" });
+    item.innerHTML = `<strong>${submission.studentName} · ${submission.variantTitle}</strong><span>${submission.subjectTitle} · ${submission.sourceTitle}</span><span>${submission.score}/${submission.total} · ${date}</span><p>Код: ${submission.code}. Устройство: ${submission.deviceId.slice(0, 18)}...</p>`;
+    nodes.teacherReport.appendChild(item);
+  });
+}
+
 function taskTypeLabel(question) {
   if (question.type === "match") return "Сопоставление: заполните таблицу цифрами";
   if (question.type === "short") return "Краткий ответ: введите слово или число";
+  if (question.type === "digits") return "Ответ цифрами: нажмите цифры";
   if (question.type === "multi") return "Несколько ответов: выберите цифры";
   return "Один ответ";
 }
@@ -465,8 +749,9 @@ function letter(index) {
 }
 
 function clearDraft() {
+  if (isScanVariant()) return;
   const question = currentQuestion();
-  state.selected = question.type === "multi" ? [] : question.type === "short" ? "" : null;
+  state.selected = question.type === "multi" ? [] : question.type === "short" || question.type === "digits" ? "" : null;
   state.matching = {};
 }
 
@@ -482,6 +767,7 @@ function loadDraftFromSaved() {
     return;
   }
   if (state.selected === null && question.type === "multi") state.selected = [];
+  if (state.selected === null && question.type === "digits") state.selected = "";
 }
 
 function hasAnswer(question) {
@@ -489,7 +775,7 @@ function hasAnswer(question) {
     return question.left.every((_, index) => state.matching[index] !== undefined && state.matching[index] !== "");
   }
   if (question.type === "multi") return Array.isArray(state.selected) && state.selected.length > 0;
-  if (question.type === "short") return typeof state.selected === "string" && state.selected.trim().length > 0;
+  if (question.type === "short" || question.type === "digits") return typeof state.selected === "string" && state.selected.trim().length > 0;
   return state.selected !== null;
 }
 
@@ -534,6 +820,7 @@ function goNext() {
   progress.completed = true;
   progress.best = Math.max(progress.best, countCorrect(variant, progress));
   saveProgress();
+  recordSubmission(variant, progress);
   show("result");
 }
 
@@ -550,21 +837,48 @@ function skipCurrentQuestion() {
   progress.completed = true;
   progress.best = Math.max(progress.best, countCorrect(variant, progress));
   saveProgress();
+  recordSubmission(variant, progress);
   show("result");
 }
 
 function restartCurrentVariant() {
+  if (state.controlMode && !isTeacher()) {
+    alert("В контрольном режиме повторная попытка закрыта.");
+    return;
+  }
   state.progress[currentVariant().id] = { completed: false, best: 0, answers: {}, skipped: {} };
   state.questionIndex = 0;
   clearDraft();
   saveProgress();
-  show("exam");
+  show(isScanVariant() ? "scan" : "exam");
+}
+
+function recordSubmission(variant, progress) {
+  if (!state.access || state.access.role !== "student") return;
+  const submissions = loadSubmissions();
+  const existing = submissions.find((item) => item.variantId === variant.id && item.code === state.access.code && item.deviceId === state.access.deviceId);
+  const entry = {
+    studentName: state.access.name,
+    code: state.access.code,
+    deviceId: state.access.deviceId,
+    subjectTitle: currentSubject().title,
+    sourceTitle: currentSource().title,
+    variantId: variant.id,
+    variantTitle: variant.title,
+    score: countCorrect(variant, progress),
+    total: variantLength(variant),
+    controlMode: state.controlMode,
+    at: new Date().toISOString()
+  };
+  if (existing) Object.assign(existing, entry);
+  else submissions.push(entry);
+  saveSubmissions(submissions);
 }
 
 function isCorrect(question, answer) {
   if (!answer) return false;
   if (question.type === "match") return question.correct.every((value, index) => Number(answer.matching?.[index]) === value);
-  if (question.type === "short") return question.correct.map(normalizeShort).includes(normalizeShort(answer.selected));
+  if (question.type === "short" || question.type === "digits") return question.correct.map(normalizeShort).includes(normalizeShort(answer.selected));
   if (question.type === "multi") return sameSet(answer.selected, question.correct);
   return answer.selected === question.correct;
 }
@@ -574,20 +888,21 @@ function sameSet(a, b) {
 }
 
 function countCorrect(variant, progress) {
+  if (isScanVariant(variant)) return 0;
   return variant.questions.reduce((sum, question, index) => sum + (isCorrect(question, progress.answers[index]) ? 1 : 0), 0);
 }
 
 function formatAnswer(question, answer) {
   if (!answer) return "нет ответа";
   if (question.type === "match") return question.left.map((_, index) => answer.matching?.[index] === undefined ? "-" : Number(answer.matching[index]) + 1).join("");
-  if (question.type === "short") return answer.selected || "нет ответа";
+  if (question.type === "short" || question.type === "digits") return answer.selected || "нет ответа";
   const selected = Array.isArray(answer.selected) ? answer.selected : [answer.selected];
   return selected.map((index) => index + 1).join("");
 }
 
 function formatCorrect(question) {
   if (question.type === "match") return question.correct.map((index) => index + 1).join("");
-  if (question.type === "short") return question.correct[0];
+  if (question.type === "short" || question.type === "digits") return question.correct[0];
   const selected = Array.isArray(question.correct) ? question.correct : [question.correct];
   return selected.map((index) => index + 1).join("");
 }
@@ -604,23 +919,55 @@ function goBack() {
   if (state.screen === "sources") show("subjects");
   else if (state.screen === "variants") show("sources");
   else if (state.screen === "exam") show("variants");
+  else if (state.screen === "scan") show("variants");
   else if (state.screen === "result") show("variants");
   else if (state.screen === "image") show("exam");
+  else if (state.screen === "teacher") show("subjects");
+}
+
+function completeCurrentScanVariant() {
+  const progress = variantProgress();
+  progress.completed = true;
+  progress.best = 0;
+  saveProgress();
+  renderScan();
 }
 
 nodes.backButton.addEventListener("click", goBack);
+nodes.accessSubmitButton.addEventListener("click", loginWithAccess);
+nodes.accessCodeInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") loginWithAccess();
+});
+nodes.studentNameInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") nodes.accessCodeInput.focus();
+});
+nodes.controlModeToggle.addEventListener("change", () => {
+  saveControlMode(nodes.controlModeToggle.checked);
+  renderSourceNote();
+  renderTeacher();
+});
 nodes.nextButton.addEventListener("click", goNext);
 nodes.skipButton.addEventListener("click", skipCurrentQuestion);
 nodes.restartVariantButton.addEventListener("click", restartCurrentVariant);
+nodes.completeScanVariantButton.addEventListener("click", completeCurrentScanVariant);
 nodes.repeatButton.addEventListener("click", restartCurrentVariant);
 nodes.nextVariantButton.addEventListener("click", () => {
   state.variantIndex = (state.variantIndex + 1) % currentSource().variants.length;
   restartCurrentVariant();
 });
 nodes.resetAllButton.addEventListener("click", () => {
+  if (state.controlMode && !isTeacher()) {
+    alert("В контрольном режиме ученик не может сбросить результат.");
+    return;
+  }
   state.progress = {};
   localStorage.removeItem(STORAGE_KEY);
-  show("subjects");
+  if (isTeacher()) {
+    localStorage.removeItem(SUBMISSIONS_KEY);
+    renderTeacher();
+    return;
+  }
+  show(state.access ? "subjects" : "access");
 });
 
-show("subjects");
+show(state.screen);

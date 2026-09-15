@@ -94,6 +94,7 @@ function handlePersonalImportFile(file) {
 }
 
 function appendPersonalImportCard() {
+  if ((window.localInteractiveSources || []).length) return;
   if (!nodes.sourceList || !state.subjectId || nodes.sourceList.querySelector(".personal-import-card")) return;
   const card = document.createElement("button");
   card.className = "card personal-import-card";

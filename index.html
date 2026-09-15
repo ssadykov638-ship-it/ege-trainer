@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>ЕГЭ Билеты</title>
-    <link rel="stylesheet" href="./styles.css?v=20260912-4">
+    <link rel="stylesheet" href="./styles.css?v=20260915-1">
   </head>
   <body>
     <main class="workspace">
@@ -33,7 +33,24 @@
             </div>
           </section>
 
-          <section class="screen" id="subjectScreen" aria-label="Выбор предмета">
+          <section class="screen" id="accessScreen" aria-label="Вход по коду">
+            <article class="task-card access-card">
+              <p class="task-type">Закрытый доступ</p>
+              <h2>Введите имя и код</h2>
+              <label class="short-row">
+                <span>Имя ученика</span>
+                <input id="studentNameInput" type="text" autocomplete="name" placeholder="Например: Иван">
+              </label>
+              <label class="short-row">
+                <span>Код доступа</span>
+                <input id="accessCodeInput" type="password" autocomplete="one-time-code" placeholder="EGE-001">
+              </label>
+              <p class="access-error" id="accessError"></p>
+              <button class="primary-button access-submit" id="accessSubmitButton" type="button">Войти</button>
+            </article>
+          </section>
+
+          <section class="screen is-hidden" id="subjectScreen" aria-label="Выбор предмета">
             <div class="screen-grid" id="subjectList"></div>
           </section>
 
@@ -79,6 +96,32 @@
             </div>
           </section>
 
+          <section class="screen is-hidden" id="teacherScreen" aria-label="Режим учителя">
+            <article class="task-card teacher-card">
+              <p class="task-type">Режим учителя</p>
+              <h2>Контроль работы</h2>
+              <label class="switch-row">
+                <span>
+                  <strong>Контрольный режим</strong>
+                  <small>После завершения варианта повторная попытка закрывается.</small>
+                </span>
+                <input id="controlModeToggle" type="checkbox">
+              </label>
+            </article>
+            <div class="review-list teacher-report" id="teacherReport"></div>
+          </section>
+
+          <section class="screen is-hidden" id="scanScreen" aria-label="Просмотр сканированного варианта">
+            <div class="exam-head">
+              <span id="scanMeta"></span>
+              <strong id="scanCount"></strong>
+            </div>
+            <div class="scan-pages" id="scanPages"></div>
+            <div class="actions">
+              <button class="primary-button" id="completeScanVariantButton" type="button">Отметить решенным</button>
+            </div>
+          </section>
+
           <section class="screen is-hidden" id="imageScreen" aria-label="Просмотр изображения">
             <figure class="image-viewer">
               <img id="viewerImage" src="" alt="">
@@ -91,7 +134,8 @@
         </div>
       </section>
     </main>
-    <script src="./app.js?v=20260912-4"></script>
-    <script src="./patch.js?v=20260912-4"></script>
+    <script src="./local-interactive.js?v=20260915-1"></script>
+    <script src="./app.js?v=20260915-1"></script>
+    <script src="./patch.js?v=20260915-1"></script>
   </body>
 </html>
