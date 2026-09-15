@@ -1,5 +1,5 @@
 const STORAGE_KEY = "ege-open-access-progress-v1";
-const APP_VERSION = "20260915-10";
+const APP_VERSION = "20260915-11";
 const ACCESS_KEY = "ege-access-session-v1";
 const AUTH_DB_KEY = "ege-auth-db-v1";
 const DEVICE_KEY = "ege-device-id-v1";
@@ -15,7 +15,7 @@ const subjects = {
     sources: [
       {
         id: "kotova-liskova-personal-2026-social",
-        title: "Котова-Лискова · личный импорт",
+        title: "Тестовый вариант",
         year: "2026",
         description: "Черновик из загруженного PDF: тестовый вариант, часть 1",
         variants: [
