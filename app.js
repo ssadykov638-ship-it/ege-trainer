@@ -1,10 +1,12 @@
 const STORAGE_KEY = "ege-open-access-progress-v1";
-const APP_VERSION = "20260915-4";
+const APP_VERSION = "20260915-5";
 const ACCESS_KEY = "ege-access-session-v1";
 const AUTH_DB_KEY = "ege-auth-db-v1";
 const DEVICE_KEY = "ege-device-id-v1";
 const TEACHER_LOGIN = "teacher";
 const TEACHER_PASSWORD = "teacher2026";
+const cloudStore = window.egeCloudStore || null;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const subjects = {
   social: {
@@ -53,6 +55,9 @@ const state = {
   selected: null,
   matching: {},
   progress: loadProgress(initialAccess),
+  cloudHomework: [],
+  cloudStudents: [],
+  cloudSubmissions: [],
   access: initialAccess
 };
 
@@ -192,6 +197,10 @@ function normalizeLogin(value) {
   return value.trim().toLowerCase();
 }
 
+function isValidEmail(value) {
+  return EMAIL_PATTERN.test(value);
+}
+
 function makeId(prefix) {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -216,6 +225,7 @@ function clearAccess() {
   state.access = null;
   state.progress = {};
   localStorage.removeItem(ACCESS_KEY);
+  if (cloudStore) cloudStore.signOut().catch((error) => console.warn("Cloud sign out failed", error));
 }
 
 function loadSubmissions() {
@@ -236,8 +246,37 @@ function isTeacher() {
   return state.access?.role === "teacher";
 }
 
+async function refreshCloudData() {
+  if (!cloudStore || !state.access?.id) return;
+  try {
+    const [progress, homework] = await Promise.all([
+      cloudStore.loadProgress(state.access.id),
+      cloudStore.loadHomework()
+    ]);
+    state.progress = progress || {};
+    state.cloudHomework = homework || [];
+    if (isTeacher()) {
+      const [students, submissions] = await Promise.all([
+        cloudStore.loadStudents(),
+        cloudStore.loadSubmissions()
+      ]);
+      state.cloudStudents = students || [];
+      state.cloudSubmissions = submissions || [];
+    }
+  } catch (error) {
+    console.warn("Cloud sync failed", error);
+  }
+}
+
 function homeworkForVariant(variant) {
+  if (cloudStore && state.cloudHomework.length) {
+    return state.cloudHomework.find((item) => item.variant_id === variant.id || item.variantId === variant.id) || null;
+  }
   return readDb().homework.find((item) => item.variantId === variant.id) || null;
+}
+
+function homeworkTitle(item) {
+  return `${item.subject_title || item.subjectTitle} · ${item.source_title || item.sourceTitle} · ${item.variant_title || item.variantTitle}`;
 }
 
 function isHomeworkVariant(variant) {
@@ -250,6 +289,20 @@ function isControlLocked(variant) {
 
 function assignHomework(variant) {
   if (!isTeacher()) return;
+  if (cloudStore) {
+    cloudStore.assignHomework({
+      subjectId: state.subjectId,
+      sourceId: state.sourceId,
+      variantId: variant.id,
+      subjectTitle: currentSubject().title,
+      sourceTitle: currentSource().title,
+      variantTitle: variant.title,
+      assignedBy: state.access.id
+    }).then(refreshCloudData).then(renderVariants).catch((error) => {
+      alert(`Supabase: ${error.message || "не удалось добавить ДЗ"}`);
+    });
+    return;
+  }
   const db = readDb();
   if (db.homework.some((item) => item.variantId === variant.id)) return;
   db.homework.push({
@@ -266,16 +319,29 @@ function assignHomework(variant) {
   writeDb(db);
 }
 
-function registerAccount() {
+async function registerAccount() {
   const name = nodes.studentNameInput.value.trim();
   const login = normalizeLogin(nodes.loginInput.value);
   const password = nodes.accessCodeInput.value.trim();
   const role = "student";
   nodes.accessError.textContent = "";
 
-  if (!name || !login || password.length < 4) {
-    nodes.accessError.textContent = "Введите имя, логин и пароль минимум из 4 символов.";
+  if (!name || !isValidEmail(login) || password.length < 4) {
+    nodes.accessError.textContent = "Введите имя, email и пароль минимум из 4 символов.";
     return;
+  }
+
+  if (cloudStore) {
+    try {
+      const access = await cloudStore.registerStudent({ name, login, password });
+      saveAccess(access);
+      await refreshCloudData();
+      show("subjects");
+      return;
+    } catch (error) {
+      nodes.accessError.textContent = `Supabase: ${error.message || "не удалось зарегистрироваться"}`;
+      return;
+    }
   }
 
   const db = readDb();
@@ -303,14 +369,27 @@ function registerAccount() {
   show("subjects");
 }
 
-function loginWithAccess() {
+async function loginWithAccess() {
   const login = normalizeLogin(nodes.loginInput.value);
   const password = nodes.accessCodeInput.value.trim();
   nodes.accessError.textContent = "";
 
   if (!login || !password) {
-    nodes.accessError.textContent = "Введите логин и пароль.";
+    nodes.accessError.textContent = "Введите email и пароль.";
     return;
+  }
+
+  if (cloudStore) {
+    try {
+      const access = await cloudStore.signIn({ login, password });
+      saveAccess(access);
+      await refreshCloudData();
+      show("subjects");
+      return;
+    } catch (error) {
+      nodes.accessError.textContent = `Supabase: ${error.message || "не удалось войти"}`;
+      return;
+    }
   }
 
   const user = readDb().users.find((item) => item.login === login && item.password === password);
@@ -441,6 +520,11 @@ function loadProgress(access = state?.access) {
 
 function saveProgress() {
   if (state.access?.id) {
+    if (cloudStore) {
+      Object.entries(state.progress).forEach(([variantId, data]) => {
+        cloudStore.saveVariantProgress(state.access.id, variantId, data).catch((error) => console.warn("Cloud progress save failed", error));
+      });
+    }
     const db = readDb();
     db.progress[state.access.id] = state.progress;
     writeDb(db);
@@ -857,7 +941,7 @@ function renderSourceNote() {
     return;
   }
   const mode = isTeacher() ? "кабинет учителя" : "кабинет ученика";
-  nodes.sourceNote.textContent = `${state.access.name} · ${mode} · локальный адаптер данных готов к замене на Supabase.`;
+  nodes.sourceNote.textContent = `${state.access.name} · ${mode} · ${cloudStore ? "данные синхронизируются через Supabase" : "локальный режим"}.`;
 }
 
 function renderTeacher() {
@@ -865,18 +949,19 @@ function renderTeacher() {
   nodes.screenTitle.textContent = "Учитель";
   nodes.resetAllButton.classList.remove("is-hidden");
   const db = readDb();
-  const submissions = loadSubmissions();
+  const submissions = cloudStore ? state.cloudSubmissions : loadSubmissions();
   nodes.teacherReport.innerHTML = "";
-  const students = db.students
-    .map((student) => db.users.find((user) => user.id === student.userId))
-    .filter(Boolean);
+  const visibleStudents = cloudStore
+    ? state.cloudStudents
+    : db.students.map((student) => db.users.find((user) => user.id === student.userId)).filter(Boolean);
   const roster = document.createElement("article");
   roster.className = "review-item";
-  roster.innerHTML = `<strong>Ученики: ${students.length}</strong><span>${students.map((student) => `${student.name} (${student.login})`).join(", ") || "Пока нет зарегистрированных учеников"}</span>`;
+  roster.innerHTML = `<strong>Ученики: ${visibleStudents.length}</strong><span>${visibleStudents.map((student) => `${student.name} (${student.login})`).join(", ") || "Пока нет зарегистрированных учеников"}</span>`;
   nodes.teacherReport.appendChild(roster);
   const homework = document.createElement("article");
   homework.className = "review-item";
-  homework.innerHTML = `<strong>ДЗ: ${db.homework.length}</strong><span>${db.homework.map((item) => `${item.subjectTitle} · ${item.sourceTitle} · ${item.variantTitle}`).join("; ") || "ДЗ пока не задано. Откройте предмет, источник и нажмите нужный вариант."}</span>`;
+  const homeworkItems = cloudStore ? state.cloudHomework : db.homework;
+  homework.innerHTML = `<strong>ДЗ: ${homeworkItems.length}</strong><span>${homeworkItems.map(homeworkTitle).join("; ") || "ДЗ пока не задано. Откройте предмет, источник и нажмите нужный вариант."}</span>`;
   nodes.teacherReport.appendChild(homework);
   if (!submissions.length) {
     const empty = document.createElement("article");
@@ -888,8 +973,9 @@ function renderTeacher() {
   submissions.slice().reverse().forEach((submission) => {
     const item = document.createElement("article");
     item.className = "review-item";
-    const date = new Date(submission.at).toLocaleString("ru-RU", { dateStyle: "short", timeStyle: "short" });
-    item.innerHTML = `<strong>${submission.studentName} · ${submission.variantTitle}</strong><span>${submission.subjectTitle} · ${submission.sourceTitle}${submission.homeworkId ? " · ДЗ" : ""}</span><span>${submission.score}/${submission.total} · ${date}</span><p>Логин: ${submission.login}. Устройство: ${submission.deviceId.slice(0, 18)}...</p>`;
+    const date = new Date(submission.at || submission.submitted_at).toLocaleString("ru-RU", { dateStyle: "short", timeStyle: "short" });
+    const student = visibleStudents.find((item) => item.id === (submission.userId || submission.user_id));
+    item.innerHTML = `<strong>${submission.studentName || student?.name || "Ученик"} · ${submission.variantTitle || submission.variant_title}</strong><span>${submission.subjectTitle || submission.subject_title} · ${submission.sourceTitle || submission.source_title}${submission.homeworkId || submission.homework_id ? " · ДЗ" : ""}</span><span>${submission.score}/${submission.total} · ${date}</span><p>Email: ${submission.login || student?.login || "нет данных"}</p>`;
     nodes.teacherReport.appendChild(item);
   });
 }
@@ -1034,6 +1120,9 @@ function recordSubmission(variant, progress) {
   if (existing) Object.assign(existing, entry);
   else submissions.push(entry);
   saveSubmissions(submissions);
+  if (cloudStore) {
+    cloudStore.saveSubmission(entry).catch((error) => console.warn("Cloud submission save failed", error));
+  }
 }
 
 function isCorrect(question, answer) {
@@ -1139,3 +1228,22 @@ nodes.resetAllButton.addEventListener("click", () => {
 });
 
 show(state.screen);
+
+(async function initCloudSession() {
+  if (!cloudStore) return;
+  try {
+    if (!state.access) {
+      const access = await cloudStore.getSessionProfile();
+      if (access) {
+        saveAccess(access);
+        state.screen = "subjects";
+      }
+    }
+    if (state.access) {
+      await refreshCloudData();
+      show(state.screen);
+    }
+  } catch (error) {
+    console.warn("Cloud session init failed", error);
+  }
+})();

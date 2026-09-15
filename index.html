@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>ЕГЭ Билеты</title>
-    <link rel="stylesheet" href="./styles.css?v=20260915-4">
+    <link rel="stylesheet" href="./styles.css?v=20260915-5">
   </head>
   <body>
     <main class="workspace">
@@ -42,8 +42,8 @@
                 <input id="studentNameInput" type="text" autocomplete="name" placeholder="Например: Иван">
               </label>
               <label class="short-row">
-                <span>Логин</span>
-                <input id="loginInput" type="text" autocomplete="username" placeholder="ivan">
+                <span>Email</span>
+                <input id="loginInput" type="email" autocomplete="email" placeholder="ivan@example.com">
               </label>
               <label class="short-row">
                 <span>Пароль</span>
@@ -134,8 +134,11 @@
         </div>
       </section>
     </main>
-    <script src="./local-interactive.js?v=20260915-4"></script>
-    <script src="./app.js?v=20260915-4"></script>
-    <script src="./patch.js?v=20260915-4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./supabase-config.js?v=20260915-5"></script>
+    <script src="./supabase-store.js?v=20260915-5"></script>
+    <script src="./local-interactive.js?v=20260915-5"></script>
+    <script src="./app.js?v=20260915-5"></script>
+    <script src="./patch.js?v=20260915-5"></script>
   </body>
 </html>
