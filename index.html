@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>ЕГЭ Билеты</title>
-    <link rel="stylesheet" href="./styles.css?v=20260915-6">
+    <link rel="stylesheet" href="./styles.css?v=20260915-7">
   </head>
   <body>
     <main class="workspace">
@@ -51,7 +51,10 @@
               </label>
               <label class="short-row">
                 <span>Пароль</span>
-                <input id="accessCodeInput" type="password" autocomplete="current-password" placeholder="Минимум 4 символа">
+                <span class="password-field">
+                  <input id="accessCodeInput" type="password" autocomplete="current-password" placeholder="Минимум 4 символа">
+                  <button class="password-toggle" id="passwordToggleButton" type="button" aria-label="Показать пароль" title="Показать пароль">👁</button>
+                </span>
               </label>
               <p class="access-error" id="accessError"></p>
               <div class="access-actions">
@@ -138,10 +141,10 @@
         </div>
       </section>
     </main>
-    <script src="./supabase-config.js?v=20260915-6"></script>
-    <script src="./supabase-store.js?v=20260915-6"></script>
+    <script src="./supabase-config.js?v=20260915-7"></script>
+    <script src="./supabase-store.js?v=20260915-7"></script>
     <script src="./local-interactive.js?v=20260915-5"></script>
-    <script src="./app.js?v=20260915-6"></script>
-    <script src="./patch.js?v=20260915-6"></script>
+    <script src="./app.js?v=20260915-7"></script>
+    <script src="./patch.js?v=20260915-7"></script>
   </body>
 </html>

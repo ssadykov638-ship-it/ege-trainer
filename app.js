@@ -1,5 +1,5 @@
 const STORAGE_KEY = "ege-open-access-progress-v1";
-const APP_VERSION = "20260915-6";
+const APP_VERSION = "20260915-7";
 const ACCESS_KEY = "ege-access-session-v1";
 const AUTH_DB_KEY = "ege-auth-db-v1";
 const DEVICE_KEY = "ege-device-id-v1";
@@ -113,6 +113,7 @@ const nodes = {
   studentNameInput: document.querySelector("#studentNameInput"),
   loginInput: document.querySelector("#loginInput"),
   accessCodeInput: document.querySelector("#accessCodeInput"),
+  passwordToggleButton: document.querySelector("#passwordToggleButton"),
   registerButton: document.querySelector("#registerButton"),
   accessSubmitButton: document.querySelector("#accessSubmitButton"),
   accessError: document.querySelector("#accessError"),
@@ -220,6 +221,13 @@ function setAuthMode(mode) {
   nodes.authLoginModeButton.setAttribute("aria-selected", String(!isRegister));
   nodes.authRegisterModeButton.setAttribute("aria-selected", String(isRegister));
   nodes.accessError.textContent = "";
+}
+
+function setPasswordVisible(isVisible) {
+  nodes.accessCodeInput.type = isVisible ? "text" : "password";
+  nodes.passwordToggleButton.classList.toggle("is-active", isVisible);
+  nodes.passwordToggleButton.setAttribute("aria-label", isVisible ? "Скрыть пароль" : "Показать пароль");
+  nodes.passwordToggleButton.title = isVisible ? "Скрыть пароль" : "Показать пароль";
 }
 
 function makeId(prefix) {
@@ -647,6 +655,7 @@ function renderSubjects() {
     nodes.studentNameInput.value = "";
     nodes.loginInput.value = "";
     nodes.accessCodeInput.value = "";
+    setPasswordVisible(false);
     show("access");
   });
   nodes.subjectList.appendChild(accountCard);
@@ -1209,6 +1218,10 @@ nodes.authLoginModeButton.addEventListener("click", () => setAuthMode("login"));
 nodes.authRegisterModeButton.addEventListener("click", () => setAuthMode("register"));
 nodes.registerButton.addEventListener("click", registerAccount);
 nodes.accessSubmitButton.addEventListener("click", loginWithAccess);
+nodes.passwordToggleButton.addEventListener("click", () => {
+  setPasswordVisible(nodes.accessCodeInput.type === "password");
+  nodes.accessCodeInput.focus();
+});
 nodes.accessCodeInput.addEventListener("keydown", (event) => {
   if (event.key === "Enter") {
     if (state.authMode === "register") registerAccount();

@@ -451,6 +451,38 @@ h2 {
   padding: 0 10px;
 }
 
+.password-field {
+  position: relative;
+  display: block;
+}
+
+.password-field input {
+  padding-right: 48px;
+}
+
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 7px;
+  width: 34px;
+  height: 34px;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 17px;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+}
+
+.password-toggle:hover,
+.password-toggle.is-active {
+  background: var(--teal-soft);
+  color: var(--teal);
+}
+
 .digit-answer {
   display: grid;
   gap: 12px;
