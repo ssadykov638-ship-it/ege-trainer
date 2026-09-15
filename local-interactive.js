@@ -625,8 +625,8 @@ window.localInteractiveSources.push({
       ]
     },
     {
-      "id": "kotova-liskova-social-2026-ocr-v4",
-      "title": "Вариант 4",
+      "id": "kotova-liskova-social-2026-ocr-v3",
+      "title": "Вариант 3",
       "questions": [
         {
           "type": "multi",
