@@ -1,20 +1,54 @@
 (function () {
   const config = window.EGE_SUPABASE;
-  const sdk = window.supabase;
-  if (!config?.url || !config?.publishableKey || !sdk?.createClient) {
+  if (!config?.url || !config?.publishableKey || typeof fetch !== "function") {
     window.egeCloudStore = null;
     return;
   }
 
-  const client = sdk.createClient(config.url, config.publishableKey, {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true
-    }
-  });
-
+  const AUTH_KEY = "ege-supabase-session-v1";
   const DEFAULT_GROUP_ID = "00000000-0000-0000-0000-000000000001";
+  const baseUrl = config.url.replace(/\/+$/, "");
+
+  function readSession() {
+    try {
+      return JSON.parse(localStorage.getItem(AUTH_KEY)) || null;
+    } catch {
+      return null;
+    }
+  }
+
+  function writeSession(session) {
+    localStorage.setItem(AUTH_KEY, JSON.stringify(session));
+  }
+
+  function clearSession() {
+    localStorage.removeItem(AUTH_KEY);
+  }
+
+  function authHeaders(token) {
+    return {
+      apikey: config.publishableKey,
+      Authorization: `Bearer ${token || config.publishableKey}`,
+      "Content-Type": "application/json"
+    };
+  }
+
+  async function request(path, options = {}) {
+    const response = await fetch(`${baseUrl}${path}`, {
+      ...options,
+      headers: {
+        ...authHeaders(options.token),
+        Prefer: options.prefer || "return=representation",
+        ...(options.headers || {})
+      }
+    });
+    const text = await response.text();
+    const body = text ? JSON.parse(text) : null;
+    if (!response.ok) {
+      throw new Error(body?.msg || body?.message || body?.error_description || body?.error || `HTTP ${response.status}`);
+    }
+    return body;
+  }
 
   function publicProfile(profile) {
     return {
@@ -27,96 +61,126 @@
     };
   }
 
-  async function getProfile(userId) {
-    const { data, error } = await client
-      .from("profiles")
-      .select("id, role, name, login, created_at")
-      .eq("id", userId)
-      .single();
-    if (error) throw error;
-    return publicProfile(data);
+  async function getProfile(userId, token = readSession()?.access_token) {
+    const rows = await request(`/rest/v1/profiles?select=id,role,name,login,created_at&id=eq.${encodeURIComponent(userId)}`, {
+      method: "GET",
+      token,
+      prefer: ""
+    });
+    if (!rows?.[0]) throw new Error("Профиль пользователя не найден.");
+    return publicProfile(rows[0]);
   }
 
   async function getSessionProfile() {
-    const { data } = await client.auth.getSession();
-    if (!data.session?.user) return null;
-    return getProfile(data.session.user.id);
+    const session = readSession();
+    if (!session?.access_token || !session?.user?.id) return null;
+    return getProfile(session.user.id, session.access_token);
   }
 
   async function registerStudent({ name, login, password }) {
     const email = String(login).trim().toLowerCase();
-    const { data, error } = await client.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { name, login, role: "student" }
-      }
+    const session = await request("/auth/v1/signup", {
+      method: "POST",
+      body: JSON.stringify({
+        email,
+        password,
+        data: { name, login: email, role: "student" }
+      })
     });
-    if (error) throw error;
-    if (!data.user) throw new Error("Пользователь не создан.");
+    const token = session.access_token;
+    if (!session.user?.id || !token) {
+      throw new Error("Проверьте почту или отключите подтверждение email в Supabase.");
+    }
+    writeSession(session);
 
-    const profile = {
-      id: data.user.id,
-      role: "student",
-      name,
-      login
-    };
-    const { error: profileError } = await client.from("profiles").insert(profile);
-    if (profileError) throw profileError;
-
-    await client.from("group_students").insert({
-      group_id: DEFAULT_GROUP_ID,
-      student_id: data.user.id
+    await request("/rest/v1/profiles", {
+      method: "POST",
+      token,
+      body: JSON.stringify({
+        id: session.user.id,
+        role: "student",
+        name,
+        login: email
+      })
     });
 
-    return publicProfile({ ...profile, created_at: new Date().toISOString() });
+    await request("/rest/v1/group_students", {
+      method: "POST",
+      token,
+      body: JSON.stringify({
+        group_id: DEFAULT_GROUP_ID,
+        student_id: session.user.id
+      })
+    });
+
+    return getProfile(session.user.id, token);
   }
 
   async function signIn({ login, password }) {
-    const { data, error } = await client.auth.signInWithPassword({
-      email: String(login).trim().toLowerCase(),
-      password
+    const session = await request("/auth/v1/token?grant_type=password", {
+      method: "POST",
+      body: JSON.stringify({
+        email: String(login).trim().toLowerCase(),
+        password
+      })
     });
-    if (error) throw error;
-    return getProfile(data.user.id);
+    writeSession(session);
+    return getProfile(session.user.id, session.access_token);
   }
 
   async function signOut() {
-    await client.auth.signOut();
+    const session = readSession();
+    if (session?.access_token) {
+      await request("/auth/v1/logout", {
+        method: "POST",
+        token: session.access_token,
+        prefer: "return=minimal"
+      }).catch(() => {});
+    }
+    clearSession();
   }
 
   async function loadProgress(userId) {
-    const { data, error } = await client
-      .from("progress")
-      .select("variant_id, data")
-      .eq("user_id", userId);
-    if (error) throw error;
-    return Object.fromEntries((data || []).map((item) => [item.variant_id, item.data || {}]));
+    const session = readSession();
+    const rows = await request(`/rest/v1/progress?select=variant_id,data&user_id=eq.${encodeURIComponent(userId)}`, {
+      method: "GET",
+      token: session?.access_token,
+      prefer: ""
+    });
+    return Object.fromEntries((rows || []).map((item) => [item.variant_id, item.data || {}]));
   }
 
   async function saveVariantProgress(userId, variantId, data) {
-    const { error } = await client.from("progress").upsert({
-      user_id: userId,
-      variant_id: variantId,
-      data,
-      updated_at: new Date().toISOString()
+    const session = readSession();
+    await request("/rest/v1/progress?on_conflict=user_id,variant_id", {
+      method: "POST",
+      token: session?.access_token,
+      headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+      body: JSON.stringify({
+        user_id: userId,
+        variant_id: variantId,
+        data,
+        updated_at: new Date().toISOString()
+      })
     });
-    if (error) throw error;
   }
 
   async function loadHomework() {
-    const { data, error } = await client
-      .from("homework")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (error) throw error;
-    return data || [];
+    const session = readSession();
+    return request("/rest/v1/homework?select=*&order=created_at.desc", {
+      method: "GET",
+      token: session?.access_token,
+      prefer: ""
+    });
   }
 
   async function assignHomework(payload) {
-    const { data, error } = await client
-      .from("homework")
-      .upsert({
+    const session = readSession();
+    const rows = await request("/rest/v1/homework?on_conflict=group_id,variant_id", {
+      method: "POST",
+      token: session?.access_token,
+      headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+      body: JSON.stringify({
         group_id: DEFAULT_GROUP_ID,
         subject_id: payload.subjectId,
         source_id: payload.sourceId,
@@ -125,50 +189,51 @@
         source_title: payload.sourceTitle,
         variant_title: payload.variantTitle,
         assigned_by: payload.assignedBy
-      }, { onConflict: "group_id,variant_id" })
-      .select()
-      .single();
-    if (error) throw error;
-    return data;
+      })
+    });
+    return rows?.[0] || null;
   }
 
   async function loadStudents() {
-    const { data, error } = await client
-      .from("profiles")
-      .select("id, role, name, login, created_at")
-      .eq("role", "student")
-      .order("created_at", { ascending: true });
-    if (error) throw error;
-    return data || [];
+    const session = readSession();
+    return request("/rest/v1/profiles?select=id,role,name,login,created_at&role=eq.student&order=created_at.asc", {
+      method: "GET",
+      token: session?.access_token,
+      prefer: ""
+    });
   }
 
   async function loadSubmissions() {
-    const { data, error } = await client
-      .from("submissions")
-      .select("*")
-      .order("submitted_at", { ascending: false });
-    if (error) throw error;
-    return data || [];
+    const session = readSession();
+    return request("/rest/v1/submissions?select=*&order=submitted_at.desc", {
+      method: "GET",
+      token: session?.access_token,
+      prefer: ""
+    });
   }
 
   async function saveSubmission(payload) {
-    const { error } = await client.from("submissions").upsert({
-      user_id: payload.userId,
-      homework_id: payload.homeworkId,
-      subject_title: payload.subjectTitle,
-      source_title: payload.sourceTitle,
-      variant_id: payload.variantId,
-      variant_title: payload.variantTitle,
-      score: payload.score,
-      total: payload.total,
-      attempt_mode: payload.attemptMode,
-      submitted_at: payload.at
-    }, { onConflict: "user_id,variant_id,attempt_mode" });
-    if (error) throw error;
+    const session = readSession();
+    await request("/rest/v1/submissions?on_conflict=user_id,variant_id,attempt_mode", {
+      method: "POST",
+      token: session?.access_token,
+      headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+      body: JSON.stringify({
+        user_id: payload.userId,
+        homework_id: payload.homeworkId,
+        subject_title: payload.subjectTitle,
+        source_title: payload.sourceTitle,
+        variant_id: payload.variantId,
+        variant_title: payload.variantTitle,
+        score: payload.score,
+        total: payload.total,
+        attempt_mode: payload.attemptMode,
+        submitted_at: payload.at
+      })
+    });
   }
 
   window.egeCloudStore = {
-    client,
     getSessionProfile,
     registerStudent,
     signIn,
