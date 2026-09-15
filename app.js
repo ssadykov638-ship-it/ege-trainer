@@ -1,5 +1,5 @@
 const STORAGE_KEY = "ege-open-access-progress-v1";
-const APP_VERSION = "20260915-7";
+const APP_VERSION = "20260915-8";
 const ACCESS_KEY = "ege-access-session-v1";
 const AUTH_DB_KEY = "ege-auth-db-v1";
 const DEVICE_KEY = "ege-device-id-v1";
@@ -348,6 +348,29 @@ function assignHomework(variant) {
   writeDb(db);
 }
 
+function removeHomework(variant) {
+  if (!isTeacher()) return;
+  const homework = homeworkForVariant(variant);
+  if (!homework) return;
+  if (cloudStore) {
+    cloudStore.removeHomework({
+      homeworkId: homework.id,
+      variantId: variant.id
+    }).then(refreshCloudData).then(renderVariants).catch((error) => {
+      alert(`Supabase: ${error.message || "не удалось убрать ДЗ"}`);
+    });
+    return;
+  }
+  const db = readDb();
+  db.homework = db.homework.filter((item) => item.variantId !== variant.id);
+  writeDb(db);
+}
+
+function toggleHomework(variant) {
+  if (homeworkForVariant(variant)) removeHomework(variant);
+  else assignHomework(variant);
+}
+
 async function registerAccount() {
   const name = nodes.studentNameInput.value.trim();
   const login = normalizeLogin(nodes.loginInput.value);
@@ -693,31 +716,40 @@ function renderVariants() {
     const statusText = isScanVariant(variant) ? `${length} ${pageWord(length)} первой части` : `${answered}/${length} заданий`;
     const homework = homeworkForVariant(variant);
     const locked = isControlLocked(variant);
-    const card = document.createElement("button");
+    const card = document.createElement(isTeacher() ? "article" : "button");
     card.className = `variant-card${locked ? " is-locked" : ""}`;
-    card.type = "button";
-    card.disabled = locked;
-    const actionLabel = isTeacher() ? (homework ? "уже в ДЗ" : "добавить в ДЗ") : locked ? "попытка завершена" : progress.completed ? (isScanVariant(variant) ? "решен" : `лучший ${progress.best}`) : "не завершен";
-    card.innerHTML = `<div><strong>${variant.title}</strong><span>${statusText}</span><div class="progress-track"><div class="progress-fill" style="width:${isScanVariant(variant) ? (progress.completed ? 100 : 0) : answered / length * 100}%"></div></div><div class="badge-line">${homework ? "<b class=\"badge\">ДЗ</b>" : ""}<b class="badge">${actionLabel}</b></div></div><i>${locked ? "✓" : isTeacher() ? "+" : "›"}</i>`;
-    card.addEventListener("click", () => {
-      if (locked) return;
-      state.variantIndex = index;
-      if (isTeacher()) {
-        assignHomework(variant);
+    if (!isTeacher()) {
+      card.type = "button";
+      card.disabled = locked;
+    }
+    const actionLabel = locked ? "попытка завершена" : progress.completed ? (isScanVariant(variant) ? "решен" : `лучший ${progress.best}`) : "не завершен";
+    const cardBody = `<div><strong>${variant.title}</strong><span>${statusText}</span><div class="progress-track"><div class="progress-fill" style="width:${isScanVariant(variant) ? (progress.completed ? 100 : 0) : answered / length * 100}%"></div></div><div class="badge-line">${homework ? "<b class=\"badge\">ДЗ</b>" : ""}<b class="badge">${actionLabel}</b></div></div>`;
+    if (isTeacher()) {
+      card.innerHTML = `<button class="variant-open" type="button">${cardBody}</button><button class="variant-action" type="button" aria-label="${homework ? "Убрать из ДЗ" : "Добавить в ДЗ"}" title="${homework ? "Убрать из ДЗ" : "Добавить в ДЗ"}">${homework ? "−" : "+"}</button>`;
+      card.querySelector(".variant-open").addEventListener("click", () => openVariant(index, variant, progress));
+      card.querySelector(".variant-action").addEventListener("click", () => {
+        toggleHomework(variant);
         renderVariants();
-        return;
-      }
-      if (isScanVariant(variant)) {
-        show("scan");
-        return;
-      }
-      const next = variant.questions.findIndex((_, questionIndex) => !progress.answers[questionIndex]);
-      state.questionIndex = next === -1 ? 0 : next;
-      clearDraft();
-      show(progress.completed && next === -1 ? "result" : "exam");
-    });
+      });
+    } else {
+      card.innerHTML = `${cardBody}<i>${locked ? "✓" : "›"}</i>`;
+      card.addEventListener("click", () => openVariant(index, variant, progress));
+    }
     nodes.variantList.appendChild(card);
   });
+}
+
+function openVariant(index, variant, progress) {
+  if (isControlLocked(variant)) return;
+  state.variantIndex = index;
+  if (isScanVariant(variant)) {
+    show("scan");
+    return;
+  }
+  const next = variant.questions.findIndex((_, questionIndex) => !progress.answers[questionIndex]);
+  state.questionIndex = next === -1 ? 0 : next;
+  clearDraft();
+  show(progress.completed && next === -1 ? "result" : "exam");
 }
 
 function pageWord(count) {

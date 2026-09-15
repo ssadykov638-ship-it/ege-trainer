@@ -194,6 +194,18 @@
     return rows?.[0] || null;
   }
 
+  async function removeHomework(payload) {
+    const session = readSession();
+    const filter = payload.homeworkId
+      ? `id=eq.${encodeURIComponent(payload.homeworkId)}`
+      : `group_id=eq.${DEFAULT_GROUP_ID}&variant_id=eq.${encodeURIComponent(payload.variantId)}`;
+    await request(`/rest/v1/homework?${filter}`, {
+      method: "DELETE",
+      token: session?.access_token,
+      headers: { Prefer: "return=minimal" }
+    });
+  }
+
   async function loadStudents() {
     const session = readSession();
     return request("/rest/v1/profiles?select=id,role,name,login,created_at&role=eq.student&order=created_at.asc", {
@@ -242,6 +254,7 @@
     saveVariantProgress,
     loadHomework,
     assignHomework,
+    removeHomework,
     loadStudents,
     loadSubmissions,
     saveSubmission
