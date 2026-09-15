@@ -1,5 +1,5 @@
 const STORAGE_KEY = "ege-open-access-progress-v1";
-const APP_VERSION = "20260915-11";
+const APP_VERSION = "20260915-12";
 const ACCESS_KEY = "ege-access-session-v1";
 const AUTH_DB_KEY = "ege-auth-db-v1";
 const DEVICE_KEY = "ege-device-id-v1";
@@ -17,7 +17,8 @@ const subjects = {
         id: "kotova-liskova-personal-2026-social",
         title: "Тестовый вариант",
         year: "2026",
-        description: "Черновик из загруженного PDF: тестовый вариант, часть 1",
+        description: "Котова-Лискова · 2026 · первая часть",
+        authorLine: "Котова-Лискова · 2026 · первая часть",
         variants: [
           {
             id: "kotova-liskova-personal-2026-social-v1",
@@ -717,7 +718,7 @@ function renderSources() {
 }
 
 function renderVariants() {
-  nodes.eyebrow.textContent = currentSource().title;
+  nodes.eyebrow.textContent = currentSource().authorLine || currentSource().title;
   nodes.screenTitle.textContent = "Варианты";
   nodes.resetAllButton.classList.remove("is-hidden");
   nodes.variantList.innerHTML = "";
