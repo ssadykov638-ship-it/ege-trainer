@@ -1,5 +1,5 @@
 const STORAGE_KEY = "ege-open-access-progress-v1";
-const APP_VERSION = "20260915-9";
+const APP_VERSION = "20260915-10";
 const ACCESS_KEY = "ege-access-session-v1";
 const AUTH_DB_KEY = "ege-auth-db-v1";
 const DEVICE_KEY = "ege-device-id-v1";
@@ -299,10 +299,11 @@ async function refreshCloudData() {
 }
 
 function homeworkForVariant(variant) {
-  if (cloudStore && state.cloudHomework.length) {
-    return state.cloudHomework.find((item) => item.variant_id === variant.id || item.variantId === variant.id) || null;
-  }
-  return readDb().homework.find((item) => item.variantId === variant.id) || null;
+  return homeworkItems().find((item) => item.variant_id === variant.id || item.variantId === variant.id) || null;
+}
+
+function homeworkItems() {
+  return cloudStore ? state.cloudHomework : readDb().homework;
 }
 
 function homeworkTitle(item) {
@@ -664,7 +665,7 @@ function renderSubjects() {
     const teacherCard = document.createElement("button");
     teacherCard.className = "card teacher-entry";
     teacherCard.type = "button";
-    teacherCard.innerHTML = `<div><strong>Кабинет учителя</strong><span>Ученики, результаты и варианты для ДЗ</span><div class="badge-line"><b class="badge">${readDb().homework.length} в ДЗ</b></div></div><i>›</i>`;
+    teacherCard.innerHTML = `<div><strong>Кабинет учителя</strong><span>Ученики, результаты и варианты для ДЗ</span><div class="badge-line"><b class="badge">${homeworkItems().length} в ДЗ</b></div></div><i>›</i>`;
     teacherCard.addEventListener("click", () => show("teacher"));
     nodes.subjectList.appendChild(teacherCard);
   }
@@ -1039,8 +1040,8 @@ function renderTeacher() {
   nodes.teacherReport.appendChild(roster);
   const homework = document.createElement("article");
   homework.className = "review-item";
-  const homeworkItems = cloudStore ? state.cloudHomework : db.homework;
-  homework.innerHTML = `<strong>ДЗ: ${homeworkItems.length}</strong><span>${homeworkItems.map(homeworkTitle).join("; ") || "ДЗ пока не задано. Откройте предмет, источник и нажмите нужный вариант."}</span>`;
+  const assignedHomework = homeworkItems();
+  homework.innerHTML = `<strong>ДЗ: ${assignedHomework.length}</strong><span>${assignedHomework.map(homeworkTitle).join("; ") || "ДЗ пока не задано. Откройте предмет, источник и нажмите нужный вариант."}</span>`;
   nodes.teacherReport.appendChild(homework);
   if (!submissions.length) {
     const empty = document.createElement("article");
