@@ -440,7 +440,8 @@ h2 {
 }
 
 .match-row select,
-.short-row input {
+.short-row input,
+.short-row select {
   width: 100%;
   min-height: 42px;
   border: 1px solid var(--line);
@@ -466,6 +467,12 @@ h2 {
 
 .access-submit {
   width: 100%;
+}
+
+.access-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
 }
 
 .access-error {

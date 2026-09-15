@@ -1,11 +1,9 @@
 const STORAGE_KEY = "ege-open-access-progress-v1";
-const APP_VERSION = "20260915-2";
+const APP_VERSION = "20260915-3";
 const ACCESS_KEY = "ege-access-session-v1";
+const AUTH_DB_KEY = "ege-auth-db-v1";
 const DEVICE_KEY = "ege-device-id-v1";
 const CONTROL_MODE_KEY = "ege-control-mode-v1";
-const SUBMISSIONS_KEY = "ege-submissions-v1";
-const ACCESS_CODES = Array.from({ length: 30 }, (_, index) => `EGE-${String(index + 1).padStart(3, "0")}`);
-const TEACHER_CODE = "TEACHER-2026";
 
 const subjects = {
   social: {
@@ -43,16 +41,18 @@ const subjects = {
 
 installLocalSources();
 
+const initialAccess = loadAccess();
+
 const state = {
-  screen: "subjects",
+  screen: initialAccess ? "subjects" : "access",
   subjectId: null,
   sourceId: null,
   variantIndex: 0,
   questionIndex: 0,
   selected: null,
   matching: {},
-  progress: loadProgress(),
-  access: null,
+  progress: loadProgress(initialAccess),
+  access: initialAccess,
   controlMode: false
 };
 
@@ -101,7 +101,10 @@ const nodes = {
   accuracyValue: document.querySelector("#accuracyValue"),
   sourceNote: document.querySelector("#sourceNote"),
   studentNameInput: document.querySelector("#studentNameInput"),
+  loginInput: document.querySelector("#loginInput"),
   accessCodeInput: document.querySelector("#accessCodeInput"),
+  roleSelect: document.querySelector("#roleSelect"),
+  registerButton: document.querySelector("#registerButton"),
   accessSubmitButton: document.querySelector("#accessSubmitButton"),
   accessError: document.querySelector("#accessError"),
   controlModeToggle: document.querySelector("#controlModeToggle"),
@@ -141,9 +144,42 @@ function getDeviceId() {
   return id;
 }
 
+function createEmptyDb() {
+  return {
+    users: [],
+    students: [],
+    teachers: [],
+    groups: [{ id: "default", title: "Основная группа", teacherId: null, studentIds: [] }],
+    progress: {},
+    submissions: []
+  };
+}
+
+function readDb() {
+  try {
+    return { ...createEmptyDb(), ...JSON.parse(localStorage.getItem(AUTH_DB_KEY)) };
+  } catch {
+    return createEmptyDb();
+  }
+}
+
+function writeDb(db) {
+  localStorage.setItem(AUTH_DB_KEY, JSON.stringify(db));
+}
+
+function normalizeLogin(value) {
+  return value.trim().toLowerCase();
+}
+
+function makeId(prefix) {
+  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 function loadAccess() {
   try {
-    return JSON.parse(localStorage.getItem(ACCESS_KEY)) || null;
+    const access = JSON.parse(localStorage.getItem(ACCESS_KEY)) || null;
+    if (!access?.id || !access?.login) return null;
+    return access;
   } catch {
     return null;
   }
@@ -152,6 +188,13 @@ function loadAccess() {
 function saveAccess(access) {
   state.access = access;
   localStorage.setItem(ACCESS_KEY, JSON.stringify(access));
+  state.progress = loadProgress(access);
+}
+
+function clearAccess() {
+  state.access = null;
+  state.progress = {};
+  localStorage.removeItem(ACCESS_KEY);
 }
 
 function loadControlMode() {
@@ -165,14 +208,16 @@ function saveControlMode(value) {
 
 function loadSubmissions() {
   try {
-    return JSON.parse(localStorage.getItem(SUBMISSIONS_KEY)) || [];
+    return readDb().submissions || [];
   } catch {
     return [];
   }
 }
 
 function saveSubmissions(submissions) {
-  localStorage.setItem(SUBMISSIONS_KEY, JSON.stringify(submissions));
+  const db = readDb();
+  db.submissions = submissions;
+  writeDb(db);
 }
 
 function isTeacher() {
@@ -183,25 +228,76 @@ function isControlLocked(variant) {
   return state.controlMode && !isTeacher() && Boolean(variantProgress(variant).completed);
 }
 
-function loginWithAccess() {
+function registerAccount() {
   const name = nodes.studentNameInput.value.trim();
-  const code = nodes.accessCodeInput.value.trim().toUpperCase();
+  const login = normalizeLogin(nodes.loginInput.value);
+  const password = nodes.accessCodeInput.value.trim();
+  const role = nodes.roleSelect.value === "teacher" ? "teacher" : "student";
   nodes.accessError.textContent = "";
-  if (code === TEACHER_CODE) {
-    saveAccess({ role: "teacher", name: name || "Учитель", code, deviceId: getDeviceId(), createdAt: new Date().toISOString() });
-    show("subjects");
+
+  if (!name || !login || password.length < 4) {
+    nodes.accessError.textContent = "Введите имя, логин и пароль минимум из 4 символов.";
     return;
   }
-  if (!ACCESS_CODES.includes(code)) {
-    nodes.accessError.textContent = "Код не найден. Для теста используйте EGE-001 ... EGE-030.";
+
+  const db = readDb();
+  if (db.users.some((user) => user.login === login)) {
+    nodes.accessError.textContent = "Такой логин уже зарегистрирован. Используйте вход.";
     return;
   }
-  if (!name) {
-    nodes.accessError.textContent = "Введите имя ученика.";
-    return;
+
+  const now = new Date().toISOString();
+  const user = {
+    id: makeId("user"),
+    role,
+    name,
+    login,
+    password,
+    deviceId: getDeviceId(),
+    createdAt: now,
+    updatedAt: now
+  };
+  db.users.push(user);
+  if (role === "teacher") {
+    db.teachers.push({ id: makeId("teacher"), userId: user.id, groupIds: ["default"], createdAt: now });
+    db.groups[0].teacherId = user.id;
+  } else {
+    db.students.push({ id: makeId("student"), userId: user.id, groupId: "default", createdAt: now });
+    db.groups[0].studentIds = [...new Set([...(db.groups[0].studentIds || []), user.id])];
   }
-  saveAccess({ role: "student", name, code, deviceId: getDeviceId(), createdAt: new Date().toISOString() });
+  writeDb(db);
+  saveAccess(publicUser(user));
   show("subjects");
+}
+
+function loginWithAccess() {
+  const login = normalizeLogin(nodes.loginInput.value);
+  const password = nodes.accessCodeInput.value.trim();
+  nodes.accessError.textContent = "";
+
+  if (!login || !password) {
+    nodes.accessError.textContent = "Введите логин и пароль.";
+    return;
+  }
+
+  const user = readDb().users.find((item) => item.login === login && item.password === password);
+  if (!user) {
+    nodes.accessError.textContent = "Пользователь не найден или пароль неверный.";
+    return;
+  }
+  saveAccess(publicUser(user));
+  show("subjects");
+}
+
+function publicUser(user) {
+  return {
+    id: user.id,
+    role: user.role,
+    name: user.name,
+    login: user.login,
+    deviceId: getDeviceId(),
+    createdAt: user.createdAt
+  };
 }
 
 function single(text, options, correct, explanation) {
@@ -299,7 +395,10 @@ function rotate(items, amount) {
   return [...items.slice(shift), ...items.slice(0, shift)];
 }
 
-function loadProgress() {
+function loadProgress(access = state?.access) {
+  if (access?.id) {
+    return readDb().progress?.[access.id] || {};
+  }
   try {
     return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
   } catch {
@@ -308,6 +407,12 @@ function loadProgress() {
 }
 
 function saveProgress() {
+  if (state.access?.id) {
+    const db = readDb();
+    db.progress[state.access.id] = state.progress;
+    writeDb(db);
+    return;
+  }
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state.progress));
 }
 
@@ -365,8 +470,8 @@ function render() {
 }
 
 function renderAccess() {
-  nodes.eyebrow.textContent = "ЕГЭ · закрытая тренировка";
-  nodes.screenTitle.textContent = "Вход";
+  nodes.eyebrow.textContent = "ЕГЭ · аккаунт";
+  nodes.screenTitle.textContent = "Регистрация";
   nodes.resetAllButton.classList.add("is-hidden");
 }
 
@@ -395,6 +500,18 @@ function renderSubjects() {
     });
     nodes.subjectList.appendChild(card);
   });
+  const accountCard = document.createElement("button");
+  accountCard.className = "card";
+  accountCard.type = "button";
+  accountCard.innerHTML = `<div><strong>${state.access.name}</strong><span>${isTeacher() ? "Учитель" : "Ученик"} · ${state.access.login}</span><div class="badge-line"><b class="badge">выйти</b></div></div><i>×</i>`;
+  accountCard.addEventListener("click", () => {
+    clearAccess();
+    nodes.studentNameInput.value = "";
+    nodes.loginInput.value = "";
+    nodes.accessCodeInput.value = "";
+    show("access");
+  });
+  nodes.subjectList.appendChild(accountCard);
 }
 
 function renderSources() {
@@ -694,11 +811,11 @@ function renderStats() {
 
 function renderSourceNote() {
   if (!state.access) {
-    nodes.sourceNote.textContent = "Открытый режим: прогресс пока сохраняется в этом браузере. Регистрация и общий кабинет учителя требуют сервер.";
+    nodes.sourceNote.textContent = "Зарегистрируйтесь, чтобы прогресс сохранялся в аккаунте этого браузера. Следующий шаг - подключение Supabase.";
     return;
   }
-  const mode = state.controlMode ? "контрольный режим" : "свободная тренировка";
-  nodes.sourceNote.textContent = `${state.access.name} · ${mode} · данные этого прототипа хранятся в браузере.`;
+  const mode = isTeacher() ? "кабинет учителя" : "кабинет ученика";
+  nodes.sourceNote.textContent = `${state.access.name} · ${mode} · локальный адаптер данных готов к замене на Supabase.`;
 }
 
 function renderTeacher() {
@@ -706,8 +823,16 @@ function renderTeacher() {
   nodes.screenTitle.textContent = "Учитель";
   nodes.resetAllButton.classList.remove("is-hidden");
   nodes.controlModeToggle.checked = state.controlMode;
+  const db = readDb();
   const submissions = loadSubmissions();
   nodes.teacherReport.innerHTML = "";
+  const students = db.students
+    .map((student) => db.users.find((user) => user.id === student.userId))
+    .filter(Boolean);
+  const roster = document.createElement("article");
+  roster.className = "review-item";
+  roster.innerHTML = `<strong>Ученики: ${students.length}</strong><span>${students.map((student) => `${student.name} (${student.login})`).join(", ") || "Пока нет зарегистрированных учеников"}</span>`;
+  nodes.teacherReport.appendChild(roster);
   if (!submissions.length) {
     const empty = document.createElement("article");
     empty.className = "review-item";
@@ -719,7 +844,7 @@ function renderTeacher() {
     const item = document.createElement("article");
     item.className = "review-item";
     const date = new Date(submission.at).toLocaleString("ru-RU", { dateStyle: "short", timeStyle: "short" });
-    item.innerHTML = `<strong>${submission.studentName} · ${submission.variantTitle}</strong><span>${submission.subjectTitle} · ${submission.sourceTitle}</span><span>${submission.score}/${submission.total} · ${date}</span><p>Код: ${submission.code}. Устройство: ${submission.deviceId.slice(0, 18)}...</p>`;
+    item.innerHTML = `<strong>${submission.studentName} · ${submission.variantTitle}</strong><span>${submission.subjectTitle} · ${submission.sourceTitle}</span><span>${submission.score}/${submission.total} · ${date}</span><p>Логин: ${submission.login}. Устройство: ${submission.deviceId.slice(0, 18)}...</p>`;
     nodes.teacherReport.appendChild(item);
   });
 }
@@ -844,10 +969,11 @@ function restartCurrentVariant() {
 function recordSubmission(variant, progress) {
   if (!state.access || state.access.role !== "student") return;
   const submissions = loadSubmissions();
-  const existing = submissions.find((item) => item.variantId === variant.id && item.code === state.access.code && item.deviceId === state.access.deviceId);
+  const existing = submissions.find((item) => item.variantId === variant.id && item.userId === state.access.id);
   const entry = {
+    userId: state.access.id,
     studentName: state.access.name,
-    code: state.access.code,
+    login: state.access.login,
     deviceId: state.access.deviceId,
     subjectTitle: currentSubject().title,
     sourceTitle: currentSource().title,
@@ -922,11 +1048,15 @@ function completeCurrentScanVariant() {
 }
 
 nodes.backButton.addEventListener("click", goBack);
+nodes.registerButton.addEventListener("click", registerAccount);
 nodes.accessSubmitButton.addEventListener("click", loginWithAccess);
 nodes.accessCodeInput.addEventListener("keydown", (event) => {
   if (event.key === "Enter") loginWithAccess();
 });
 nodes.studentNameInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") nodes.loginInput.focus();
+});
+nodes.loginInput.addEventListener("keydown", (event) => {
   if (event.key === "Enter") nodes.accessCodeInput.focus();
 });
 nodes.controlModeToggle.addEventListener("change", () => {
@@ -949,9 +1079,17 @@ nodes.resetAllButton.addEventListener("click", () => {
     return;
   }
   state.progress = {};
-  localStorage.removeItem(STORAGE_KEY);
+  if (state.access?.id) {
+    const db = readDb();
+    db.progress[state.access.id] = {};
+    writeDb(db);
+  } else {
+    localStorage.removeItem(STORAGE_KEY);
+  }
   if (isTeacher()) {
-    localStorage.removeItem(SUBMISSIONS_KEY);
+    const db = readDb();
+    db.submissions = [];
+    writeDb(db);
     renderTeacher();
     return;
   }

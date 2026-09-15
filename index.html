@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>ЕГЭ Билеты</title>
-    <link rel="stylesheet" href="./styles.css?v=20260915-2">
+    <link rel="stylesheet" href="./styles.css?v=20260915-3">
   </head>
   <body>
     <main class="workspace">
@@ -33,24 +33,38 @@
             </div>
           </section>
 
-          <section class="screen is-hidden" id="accessScreen" aria-label="Вход по коду">
+          <section class="screen" id="accessScreen" aria-label="Регистрация и вход">
             <article class="task-card access-card">
-              <p class="task-type">Закрытый доступ</p>
-              <h2>Введите имя и код</h2>
+              <p class="task-type">Аккаунт</p>
+              <h2>Регистрация / Вход</h2>
               <label class="short-row">
-                <span>Имя ученика</span>
+                <span>Имя</span>
                 <input id="studentNameInput" type="text" autocomplete="name" placeholder="Например: Иван">
               </label>
               <label class="short-row">
-                <span>Код доступа</span>
-                <input id="accessCodeInput" type="password" autocomplete="one-time-code" placeholder="EGE-001">
+                <span>Логин</span>
+                <input id="loginInput" type="text" autocomplete="username" placeholder="ivan">
+              </label>
+              <label class="short-row">
+                <span>Пароль</span>
+                <input id="accessCodeInput" type="password" autocomplete="current-password" placeholder="Минимум 4 символа">
+              </label>
+              <label class="short-row">
+                <span>Роль</span>
+                <select id="roleSelect">
+                  <option value="student">Ученик</option>
+                  <option value="teacher">Учитель</option>
+                </select>
               </label>
               <p class="access-error" id="accessError"></p>
-              <button class="primary-button access-submit" id="accessSubmitButton" type="button">Войти</button>
+              <div class="access-actions">
+                <button class="primary-button access-submit" id="registerButton" type="button">Зарегистрироваться</button>
+                <button class="ghost-button access-submit" id="accessSubmitButton" type="button">Войти</button>
+              </div>
             </article>
           </section>
 
-          <section class="screen" id="subjectScreen" aria-label="Выбор предмета">
+          <section class="screen is-hidden" id="subjectScreen" aria-label="Выбор предмета">
             <div class="screen-grid" id="subjectList"></div>
           </section>
 
@@ -134,8 +148,8 @@
         </div>
       </section>
     </main>
-    <script src="./local-interactive.js?v=20260915-2"></script>
-    <script src="./app.js?v=20260915-2"></script>
-    <script src="./patch.js?v=20260915-2"></script>
+    <script src="./local-interactive.js?v=20260915-3"></script>
+    <script src="./app.js?v=20260915-3"></script>
+    <script src="./patch.js?v=20260915-3"></script>
   </body>
 </html>
