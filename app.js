@@ -1,5 +1,5 @@
 const STORAGE_KEY = "ege-open-access-progress-v1";
-const APP_VERSION = "20260915-1";
+const APP_VERSION = "20260915-2";
 const ACCESS_KEY = "ege-access-session-v1";
 const DEVICE_KEY = "ege-device-id-v1";
 const CONTROL_MODE_KEY = "ege-control-mode-v1";
@@ -44,7 +44,7 @@ const subjects = {
 installLocalSources();
 
 const state = {
-  screen: loadAccess() ? "subjects" : "access",
+  screen: "subjects",
   subjectId: null,
   sourceId: null,
   variantIndex: 0,
@@ -52,8 +52,8 @@ const state = {
   selected: null,
   matching: {},
   progress: loadProgress(),
-  access: loadAccess(),
-  controlMode: loadControlMode()
+  access: null,
+  controlMode: false
 };
 
 const nodes = {
@@ -395,18 +395,6 @@ function renderSubjects() {
     });
     nodes.subjectList.appendChild(card);
   });
-  const logoutCard = document.createElement("button");
-  logoutCard.className = "card";
-  logoutCard.type = "button";
-  logoutCard.innerHTML = `<div><strong>Сменить пользователя</strong><span>Ввести другой код ученика или учителя</span><div class="badge-line"><b class="badge">${state.access?.code || "без кода"}</b></div></div><i>›</i>`;
-  logoutCard.addEventListener("click", () => {
-    state.access = null;
-    localStorage.removeItem(ACCESS_KEY);
-    nodes.studentNameInput.value = "";
-    nodes.accessCodeInput.value = "";
-    show("access");
-  });
-  nodes.subjectList.appendChild(logoutCard);
 }
 
 function renderSources() {
@@ -706,7 +694,7 @@ function renderStats() {
 
 function renderSourceNote() {
   if (!state.access) {
-    nodes.sourceNote.textContent = "Демо-закрытие работает локально. Настоящая привязка ключей требует сервер.";
+    nodes.sourceNote.textContent = "Открытый режим: прогресс пока сохраняется в этом браузере. Регистрация и общий кабинет учителя требуют сервер.";
     return;
   }
   const mode = state.controlMode ? "контрольный режим" : "свободная тренировка";
@@ -967,7 +955,7 @@ nodes.resetAllButton.addEventListener("click", () => {
     renderTeacher();
     return;
   }
-  show(state.access ? "subjects" : "access");
+  show("subjects");
 });
 
 show(state.screen);
