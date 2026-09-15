@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>ЕГЭ Билеты</title>
-    <link rel="stylesheet" href="./styles.css?v=20260915-3">
+    <link rel="stylesheet" href="./styles.css?v=20260915-4">
   </head>
   <body>
     <main class="workspace">
@@ -48,13 +48,6 @@
               <label class="short-row">
                 <span>Пароль</span>
                 <input id="accessCodeInput" type="password" autocomplete="current-password" placeholder="Минимум 4 символа">
-              </label>
-              <label class="short-row">
-                <span>Роль</span>
-                <select id="roleSelect">
-                  <option value="student">Ученик</option>
-                  <option value="teacher">Учитель</option>
-                </select>
               </label>
               <p class="access-error" id="accessError"></p>
               <div class="access-actions">
@@ -113,14 +106,7 @@
           <section class="screen is-hidden" id="teacherScreen" aria-label="Режим учителя">
             <article class="task-card teacher-card">
               <p class="task-type">Режим учителя</p>
-              <h2>Контроль работы</h2>
-              <label class="switch-row">
-                <span>
-                  <strong>Контрольный режим</strong>
-                  <small>После завершения варианта повторная попытка закрывается.</small>
-                </span>
-                <input id="controlModeToggle" type="checkbox">
-              </label>
+              <h2>Домашние задания</h2>
             </article>
             <div class="review-list teacher-report" id="teacherReport"></div>
           </section>
@@ -148,8 +134,8 @@
         </div>
       </section>
     </main>
-    <script src="./local-interactive.js?v=20260915-3"></script>
-    <script src="./app.js?v=20260915-3"></script>
-    <script src="./patch.js?v=20260915-3"></script>
+    <script src="./local-interactive.js?v=20260915-4"></script>
+    <script src="./app.js?v=20260915-4"></script>
+    <script src="./patch.js?v=20260915-4"></script>
   </body>
 </html>

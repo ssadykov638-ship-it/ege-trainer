@@ -1,9 +1,10 @@
 const STORAGE_KEY = "ege-open-access-progress-v1";
-const APP_VERSION = "20260915-3";
+const APP_VERSION = "20260915-4";
 const ACCESS_KEY = "ege-access-session-v1";
 const AUTH_DB_KEY = "ege-auth-db-v1";
 const DEVICE_KEY = "ege-device-id-v1";
-const CONTROL_MODE_KEY = "ege-control-mode-v1";
+const TEACHER_LOGIN = "teacher";
+const TEACHER_PASSWORD = "teacher2026";
 
 const subjects = {
   social: {
@@ -52,8 +53,7 @@ const state = {
   selected: null,
   matching: {},
   progress: loadProgress(initialAccess),
-  access: initialAccess,
-  controlMode: false
+  access: initialAccess
 };
 
 const nodes = {
@@ -103,11 +103,9 @@ const nodes = {
   studentNameInput: document.querySelector("#studentNameInput"),
   loginInput: document.querySelector("#loginInput"),
   accessCodeInput: document.querySelector("#accessCodeInput"),
-  roleSelect: document.querySelector("#roleSelect"),
   registerButton: document.querySelector("#registerButton"),
   accessSubmitButton: document.querySelector("#accessSubmitButton"),
   accessError: document.querySelector("#accessError"),
-  controlModeToggle: document.querySelector("#controlModeToggle"),
   teacherReport: document.querySelector("#teacherReport")
 };
 
@@ -151,20 +149,43 @@ function createEmptyDb() {
     teachers: [],
     groups: [{ id: "default", title: "Основная группа", teacherId: null, studentIds: [] }],
     progress: {},
+    homework: [],
     submissions: []
   };
 }
 
 function readDb() {
   try {
-    return { ...createEmptyDb(), ...JSON.parse(localStorage.getItem(AUTH_DB_KEY)) };
+    const db = { ...createEmptyDb(), ...JSON.parse(localStorage.getItem(AUTH_DB_KEY)) };
+    if (!Array.isArray(db.homework)) db.homework = [];
+    return ensureTeacherAccount(db);
   } catch {
-    return createEmptyDb();
+    return ensureTeacherAccount(createEmptyDb());
   }
 }
 
 function writeDb(db) {
   localStorage.setItem(AUTH_DB_KEY, JSON.stringify(db));
+}
+
+function ensureTeacherAccount(db) {
+  const existing = db.users.find((user) => user.login === TEACHER_LOGIN);
+  if (existing) return db;
+  const now = new Date().toISOString();
+  const user = {
+    id: "teacher-main",
+    role: "teacher",
+    name: "Учитель",
+    login: TEACHER_LOGIN,
+    password: TEACHER_PASSWORD,
+    deviceId: "teacher",
+    createdAt: now,
+    updatedAt: now
+  };
+  db.users.push(user);
+  db.teachers.push({ id: "teacher-main-profile", userId: user.id, groupIds: ["default"], createdAt: now });
+  db.groups[0].teacherId = user.id;
+  return db;
 }
 
 function normalizeLogin(value) {
@@ -197,15 +218,6 @@ function clearAccess() {
   localStorage.removeItem(ACCESS_KEY);
 }
 
-function loadControlMode() {
-  return localStorage.getItem(CONTROL_MODE_KEY) === "on";
-}
-
-function saveControlMode(value) {
-  state.controlMode = Boolean(value);
-  localStorage.setItem(CONTROL_MODE_KEY, state.controlMode ? "on" : "off");
-}
-
 function loadSubmissions() {
   try {
     return readDb().submissions || [];
@@ -224,15 +236,41 @@ function isTeacher() {
   return state.access?.role === "teacher";
 }
 
+function homeworkForVariant(variant) {
+  return readDb().homework.find((item) => item.variantId === variant.id) || null;
+}
+
+function isHomeworkVariant(variant) {
+  return Boolean(homeworkForVariant(variant));
+}
+
 function isControlLocked(variant) {
-  return state.controlMode && !isTeacher() && Boolean(variantProgress(variant).completed);
+  return isHomeworkVariant(variant) && !isTeacher() && Boolean(variantProgress(variant).completed);
+}
+
+function assignHomework(variant) {
+  if (!isTeacher()) return;
+  const db = readDb();
+  if (db.homework.some((item) => item.variantId === variant.id)) return;
+  db.homework.push({
+    id: makeId("homework"),
+    subjectId: state.subjectId,
+    sourceId: state.sourceId,
+    variantId: variant.id,
+    subjectTitle: currentSubject().title,
+    sourceTitle: currentSource().title,
+    variantTitle: variant.title,
+    assignedBy: state.access.id,
+    createdAt: new Date().toISOString()
+  });
+  writeDb(db);
 }
 
 function registerAccount() {
   const name = nodes.studentNameInput.value.trim();
   const login = normalizeLogin(nodes.loginInput.value);
   const password = nodes.accessCodeInput.value.trim();
-  const role = nodes.roleSelect.value === "teacher" ? "teacher" : "student";
+  const role = "student";
   nodes.accessError.textContent = "";
 
   if (!name || !login || password.length < 4) {
@@ -258,13 +296,8 @@ function registerAccount() {
     updatedAt: now
   };
   db.users.push(user);
-  if (role === "teacher") {
-    db.teachers.push({ id: makeId("teacher"), userId: user.id, groupIds: ["default"], createdAt: now });
-    db.groups[0].teacherId = user.id;
-  } else {
-    db.students.push({ id: makeId("student"), userId: user.id, groupId: "default", createdAt: now });
-    db.groups[0].studentIds = [...new Set([...(db.groups[0].studentIds || []), user.id])];
-  }
+  db.students.push({ id: makeId("student"), userId: user.id, groupId: "default", createdAt: now });
+  db.groups[0].studentIds = [...new Set([...(db.groups[0].studentIds || []), user.id])];
   writeDb(db);
   saveAccess(publicUser(user));
   show("subjects");
@@ -478,13 +511,13 @@ function renderAccess() {
 function renderSubjects() {
   nodes.eyebrow.textContent = "ЕГЭ · первая часть";
   nodes.screenTitle.textContent = "Выбор предмета";
-  nodes.resetAllButton.classList.toggle("is-hidden", state.controlMode && !isTeacher());
+  nodes.resetAllButton.classList.remove("is-hidden");
   nodes.subjectList.innerHTML = "";
   if (isTeacher()) {
     const teacherCard = document.createElement("button");
     teacherCard.className = "card teacher-entry";
     teacherCard.type = "button";
-    teacherCard.innerHTML = `<div><strong>Режим учителя</strong><span>Контрольный режим и журнал результатов на этом устройстве</span><div class="badge-line"><b class="badge">${state.controlMode ? "контроль включен" : "свободная тренировка"}</b></div></div><i>›</i>`;
+    teacherCard.innerHTML = `<div><strong>Кабинет учителя</strong><span>Ученики, результаты и варианты для ДЗ</span><div class="badge-line"><b class="badge">${readDb().homework.length} в ДЗ</b></div></div><i>›</i>`;
     teacherCard.addEventListener("click", () => show("teacher"));
     nodes.subjectList.appendChild(teacherCard);
   }
@@ -517,7 +550,7 @@ function renderSubjects() {
 function renderSources() {
   nodes.eyebrow.textContent = currentSubject().title;
   nodes.screenTitle.textContent = "Источник";
-  nodes.resetAllButton.classList.toggle("is-hidden", state.controlMode && !isTeacher());
+  nodes.resetAllButton.classList.remove("is-hidden");
   nodes.sourceList.innerHTML = "";
   currentSubject().sources.forEach((sourceItem) => {
     const completed = sourceItem.variants.filter((variant) => variantProgress(variant).completed).length;
@@ -537,22 +570,29 @@ function renderSources() {
 function renderVariants() {
   nodes.eyebrow.textContent = currentSource().title;
   nodes.screenTitle.textContent = "Варианты";
-  nodes.resetAllButton.classList.toggle("is-hidden", state.controlMode && !isTeacher());
+  nodes.resetAllButton.classList.remove("is-hidden");
   nodes.variantList.innerHTML = "";
   currentSource().variants.forEach((variant, index) => {
     const progress = variantProgress(variant);
     const answered = Object.keys(progress.answers).length;
     const length = variantLength(variant);
     const statusText = isScanVariant(variant) ? `${length} ${pageWord(length)} первой части` : `${answered}/${length} заданий`;
+    const homework = homeworkForVariant(variant);
     const locked = isControlLocked(variant);
     const card = document.createElement("button");
     card.className = `variant-card${locked ? " is-locked" : ""}`;
     card.type = "button";
     card.disabled = locked;
-    card.innerHTML = `<div><strong>${variant.title}</strong><span>${statusText}</span><div class="progress-track"><div class="progress-fill" style="width:${isScanVariant(variant) ? (progress.completed ? 100 : 0) : answered / length * 100}%"></div></div><div class="badge-line"><b class="badge">${locked ? "попытка завершена" : progress.completed ? (isScanVariant(variant) ? "решен" : `лучший ${progress.best}`) : "не завершен"}</b></div></div><i>${locked ? "✓" : "›"}</i>`;
+    const actionLabel = isTeacher() ? (homework ? "уже в ДЗ" : "добавить в ДЗ") : locked ? "попытка завершена" : progress.completed ? (isScanVariant(variant) ? "решен" : `лучший ${progress.best}`) : "не завершен";
+    card.innerHTML = `<div><strong>${variant.title}</strong><span>${statusText}</span><div class="progress-track"><div class="progress-fill" style="width:${isScanVariant(variant) ? (progress.completed ? 100 : 0) : answered / length * 100}%"></div></div><div class="badge-line">${homework ? "<b class=\"badge\">ДЗ</b>" : ""}<b class="badge">${actionLabel}</b></div></div><i>${locked ? "✓" : isTeacher() ? "+" : "›"}</i>`;
     card.addEventListener("click", () => {
       if (locked) return;
       state.variantIndex = index;
+      if (isTeacher()) {
+        assignHomework(variant);
+        renderVariants();
+        return;
+      }
       if (isScanVariant(variant)) {
         show("scan");
         return;
@@ -593,20 +633,21 @@ function renderScan() {
 function renderExam() {
   const variant = currentVariant();
   const progress = variantProgress();
+  const homework = homeworkForVariant(variant);
   const question = currentQuestion();
   const answered = Object.keys(progress.answers).length;
   const skipped = Object.keys(progress.skipped).filter((index) => !progress.answers[index]).length;
   loadDraftFromSaved();
   nodes.eyebrow.textContent = currentSource().title;
   nodes.screenTitle.textContent = variant.title;
-  nodes.variantMeta.textContent = skipped ? `Ответы не проверяются до конца · пропущено ${skipped}` : "Ответы не проверяются до конца варианта";
+  nodes.variantMeta.textContent = homework ? "Домашнее задание · одна попытка" : skipped ? `Ответы не проверяются до конца · пропущено ${skipped}` : "Ответы не проверяются до конца варианта";
   nodes.questionCount.textContent = `${state.questionIndex + 1}/${variant.questions.length}`;
   nodes.variantProgress.style.width = `${answered / variant.questions.length * 100}%`;
   nodes.taskType.textContent = taskTypeLabel(question);
   nodes.questionTitle.textContent = question.text;
   nodes.nextButton.textContent = state.questionIndex === variant.questions.length - 1 ? "Завершить" : "Дальше";
   nodes.nextButton.disabled = !hasAnswer(question);
-  nodes.restartVariantButton.disabled = state.controlMode && !isTeacher();
+  nodes.restartVariantButton.disabled = Boolean(homework) && !isTeacher();
   renderQuestionNav(variant, progress);
   renderQuestionInput(question);
 }
@@ -757,6 +798,7 @@ function renderQuestionInput(question) {
 function renderResult() {
   const variant = currentVariant();
   const progress = variantProgress();
+  const homework = homeworkForVariant(variant);
   const correct = countCorrect(variant, progress);
   const mistakes = variantLength(variant) - correct;
   nodes.eyebrow.textContent = currentSource().title;
@@ -764,8 +806,8 @@ function renderResult() {
   nodes.resultMeta.textContent = `${currentSubject().title} · ${currentSource().year} · ${variant.title}`;
   nodes.resultTitle.textContent = `${correct}/${variantLength(variant)}`;
   nodes.resultText.textContent = mistakes === 0 ? "Вариант закрыт идеально." : `Ошибок: ${mistakes}. Ниже разбор только проблемных заданий.`;
-  nodes.repeatButton.disabled = state.controlMode && !isTeacher();
-  nodes.repeatButton.textContent = state.controlMode && !isTeacher() ? "Попытка закрыта" : "Повторить";
+  nodes.repeatButton.disabled = Boolean(homework) && !isTeacher();
+  nodes.repeatButton.textContent = homework && !isTeacher() ? "Попытка закрыта" : "Повторить";
   nodes.reviewList.innerHTML = "";
   variant.questions.forEach((question, index) => {
     const answer = progress.answers[index];
@@ -822,7 +864,6 @@ function renderTeacher() {
   nodes.eyebrow.textContent = "ЕГЭ · админ";
   nodes.screenTitle.textContent = "Учитель";
   nodes.resetAllButton.classList.remove("is-hidden");
-  nodes.controlModeToggle.checked = state.controlMode;
   const db = readDb();
   const submissions = loadSubmissions();
   nodes.teacherReport.innerHTML = "";
@@ -833,6 +874,10 @@ function renderTeacher() {
   roster.className = "review-item";
   roster.innerHTML = `<strong>Ученики: ${students.length}</strong><span>${students.map((student) => `${student.name} (${student.login})`).join(", ") || "Пока нет зарегистрированных учеников"}</span>`;
   nodes.teacherReport.appendChild(roster);
+  const homework = document.createElement("article");
+  homework.className = "review-item";
+  homework.innerHTML = `<strong>ДЗ: ${db.homework.length}</strong><span>${db.homework.map((item) => `${item.subjectTitle} · ${item.sourceTitle} · ${item.variantTitle}`).join("; ") || "ДЗ пока не задано. Откройте предмет, источник и нажмите нужный вариант."}</span>`;
+  nodes.teacherReport.appendChild(homework);
   if (!submissions.length) {
     const empty = document.createElement("article");
     empty.className = "review-item";
@@ -844,7 +889,7 @@ function renderTeacher() {
     const item = document.createElement("article");
     item.className = "review-item";
     const date = new Date(submission.at).toLocaleString("ru-RU", { dateStyle: "short", timeStyle: "short" });
-    item.innerHTML = `<strong>${submission.studentName} · ${submission.variantTitle}</strong><span>${submission.subjectTitle} · ${submission.sourceTitle}</span><span>${submission.score}/${submission.total} · ${date}</span><p>Логин: ${submission.login}. Устройство: ${submission.deviceId.slice(0, 18)}...</p>`;
+    item.innerHTML = `<strong>${submission.studentName} · ${submission.variantTitle}</strong><span>${submission.subjectTitle} · ${submission.sourceTitle}${submission.homeworkId ? " · ДЗ" : ""}</span><span>${submission.score}/${submission.total} · ${date}</span><p>Логин: ${submission.login}. Устройство: ${submission.deviceId.slice(0, 18)}...</p>`;
     nodes.teacherReport.appendChild(item);
   });
 }
@@ -955,8 +1000,8 @@ function skipCurrentQuestion() {
 }
 
 function restartCurrentVariant() {
-  if (state.controlMode && !isTeacher()) {
-    alert("В контрольном режиме повторная попытка закрыта.");
+  if (isHomeworkVariant(currentVariant()) && variantProgress().completed && !isTeacher()) {
+    alert("Это ДЗ: повторная попытка закрыта.");
     return;
   }
   state.progress[currentVariant().id] = { completed: false, best: 0, answers: {}, skipped: {} };
@@ -969,6 +1014,7 @@ function restartCurrentVariant() {
 function recordSubmission(variant, progress) {
   if (!state.access || state.access.role !== "student") return;
   const submissions = loadSubmissions();
+  const homework = homeworkForVariant(variant);
   const existing = submissions.find((item) => item.variantId === variant.id && item.userId === state.access.id);
   const entry = {
     userId: state.access.id,
@@ -979,9 +1025,10 @@ function recordSubmission(variant, progress) {
     sourceTitle: currentSource().title,
     variantId: variant.id,
     variantTitle: variant.title,
+    homeworkId: homework?.id || null,
     score: countCorrect(variant, progress),
     total: variantLength(variant),
-    controlMode: state.controlMode,
+    attemptMode: homework ? "homework" : "practice",
     at: new Date().toISOString()
   };
   if (existing) Object.assign(existing, entry);
@@ -1059,11 +1106,6 @@ nodes.studentNameInput.addEventListener("keydown", (event) => {
 nodes.loginInput.addEventListener("keydown", (event) => {
   if (event.key === "Enter") nodes.accessCodeInput.focus();
 });
-nodes.controlModeToggle.addEventListener("change", () => {
-  saveControlMode(nodes.controlModeToggle.checked);
-  renderSourceNote();
-  renderTeacher();
-});
 nodes.nextButton.addEventListener("click", goNext);
 nodes.skipButton.addEventListener("click", skipCurrentQuestion);
 nodes.restartVariantButton.addEventListener("click", restartCurrentVariant);
@@ -1074,8 +1116,8 @@ nodes.nextVariantButton.addEventListener("click", () => {
   restartCurrentVariant();
 });
 nodes.resetAllButton.addEventListener("click", () => {
-  if (state.controlMode && !isTeacher()) {
-    alert("В контрольном режиме ученик не может сбросить результат.");
+  if (!isTeacher() && readDb().homework.some((item) => state.progress[item.variantId]?.completed)) {
+    alert("Завершенное ДЗ нельзя сбросить.");
     return;
   }
   state.progress = {};
