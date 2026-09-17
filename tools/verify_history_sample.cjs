@@ -12,7 +12,7 @@ const { chromium } = require('playwright');
     const keys = ['431','1324','Уложенная комиссия','23','5','1423','245','двенадцатый','Юрий Долгорукий','3','3','Борис Годунов','34','5','3','1','4'];
     await page.evaluate(keys => {
       const source = subjects.history_oge.sources[0];
-      if (source.variants.length !== 6) throw Error('Expected six verified variants');
+      if (source.variants.length !== 7) throw Error('Expected seven verified variants');
       const variant = source.variants[0];
       if (variant.questions.length !== 17) throw Error('Missing tasks');
       variant.questions.forEach((q, i) => {
@@ -196,6 +196,28 @@ const { chromium } = require('playwright');
         await page.screenshot({path:`review/history/v6-${width}-q${i+1}.png`,fullPage:true});
       }
     }
-    console.log('102 source keys, alternate pairs, shared maps, native tables and 306 viewport renders verified.');
+    const keys7=['235','1243','Соборное уложение','15','5','1423','213','тринадцатый','Александр Невский','4','2','мировые суды','15','2','1','2','3'];
+    await page.evaluate(keys=>{
+      const variant=subjects.history_oge.sources[0].variants[6];
+      variant.questions.forEach((q,i)=>{
+        if(q.sourceTask!==i+1||q.sourceVariant!==7)throw Error('Variant 7 mapping');
+        const key=keys[i];
+        const answer=q.type==='match'?{matching:Object.fromEntries([...key].map((d,j)=>[j,String(Number(d)-1)]))}:q.type==='multi'?{selected:[...key].map(d=>Number(d)-1).reverse()}:q.type==='single'?{selected:Number(key)-1}:{selected:key};
+        if(!isCorrect(q,answer))throw Error(`Variant 7 key ${i+1}`);
+      });
+      if(!isCorrect(variant.questions[5],{selected:'2314'}))throw Error('Variant 7 alternate order');
+      if(!isCorrect(variant.questions[11],{selected:'мировой суд'}))throw Error('Variant 7 alternate court');
+      state.variantIndex=6;state.variantId=variant.id;
+    },keys7);
+    for(const width of [320,390,1280]){
+      await page.setViewportSize({width,height:900});
+      for(let i=0;i<17;i++){
+        await page.evaluate(i=>{state.questionIndex=i;clearDraft();show('exam');},i);
+        await page.locator('.task-media img').evaluateAll(images=>Promise.all(images.map(img=>img.decode())));
+        assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`Variant 7 overflow ${width}.${i+1}`);
+        await page.screenshot({path:`review/history/v7-${width}-q${i+1}.png`,fullPage:true});
+      }
+    }
+    console.log('119 source keys, alternate answers, shared maps, native tables and 357 viewport renders verified.');
   } finally { await browser.close(); }
 })().catch(error=>{console.error(error);process.exitCode=1;});
