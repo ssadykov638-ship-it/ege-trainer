@@ -12,7 +12,7 @@ const { chromium } = require('playwright');
     const keys = ['431','1324','Уложенная комиссия','23','5','1423','245','двенадцатый','Юрий Долгорукий','3','3','Борис Годунов','34','5','3','1','4'];
     await page.evaluate(keys => {
       const source = subjects.history_oge.sources[0];
-      if (source.variants.length !== 9) throw Error('Expected nine verified variants');
+      if (source.variants.length !== 10) throw Error('Expected ten verified variants');
       const variant = source.variants[0];
       if (variant.questions.length !== 17) throw Error('Missing tasks');
       variant.questions.forEach((q, i) => {
@@ -266,6 +266,31 @@ const { chromium } = require('playwright');
         await page.screenshot({path:`review/history/v9-${width}-q${i+1}.png`,fullPage:true});
       }
     }
-    console.log('153 source keys, alternate answers, shared maps, native tables and 459 viewport renders verified.');
+    const keys10=['531','3421','Святейший синод','25','5','1432','352','восемнадцатый','Пугачёв','1','4','Юрий Долгорукий','34','2','1','3','4'];
+    await page.evaluate(keys=>{
+      const variant=subjects.history_oge.sources[0].variants[9];
+      variant.questions.forEach((q,i)=>{
+        if(q.sourceTask!==i+1||q.sourceVariant!==10)throw Error('Variant 10 mapping');
+        const key=keys[i];
+        const answer=q.type==='match'?{matching:Object.fromEntries([...key].map((d,j)=>[j,String(Number(d)-1)]))}:q.type==='multi'?{selected:[...key].map(d=>Number(d)-1).reverse()}:q.type==='single'?{selected:Number(key)-1}:{selected:key};
+        if(!isCorrect(q,answer))throw Error(`Variant 10 key ${i+1}`);
+      });
+      if(!isCorrect(variant.questions[2],{selected:'Синод'}))throw Error('Variant 10 alternate synod');
+      if(!isCorrect(variant.questions[5],{selected:'3214'}))throw Error('Variant 10 alternate order');
+      if(!isCorrect(variant.questions[8],{selected:'Пугачев'}))throw Error('Variant 10 alternate spelling');
+      if(variant.questions.slice(7,10).some(q=>q.image!==variant.questions[7].image))throw Error('Variant 10 shared map');
+      state.variantIndex=9;state.variantId=variant.id;
+    },keys10);
+    for(const width of [320,390,1280]){
+      await page.setViewportSize({width,height:900});
+      for(let i=0;i<17;i++){
+        await page.evaluate(i=>{state.questionIndex=i;clearDraft();show('exam');},i);
+        await page.locator('.task-media img').evaluateAll(images=>Promise.all(images.map(img=>img.decode())));
+        assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`Variant 10 overflow ${width}.${i+1}`);
+        if(i===6)assert.deepEqual(await page.locator('.task-table tbody td').allTextContents(),['94 244,1','116 505,5','9456,1','11 671,8','9354,8','11 392,4','5784,4','7878,5','7747,2','9631,3','2555,5','3015,7']);
+        await page.screenshot({path:`review/history/v10-${width}-q${i+1}.png`,fullPage:true});
+      }
+    }
+    console.log('170 source keys, alternate answers, shared maps, native tables and 510 viewport renders verified.');
   } finally { await browser.close(); }
 })().catch(error=>{console.error(error);process.exitCode=1;});
