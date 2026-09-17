@@ -1,5 +1,5 @@
 const STORAGE_KEY = "ege-open-access-progress-v1";
-const APP_VERSION = "20260917-10";
+const APP_VERSION = "20260917-14";
 const ACCESS_KEY = "ege-access-session-v1";
 const AUTH_DB_KEY = "ege-auth-db-v1";
 const DEVICE_KEY = "ege-device-id-v1";
@@ -9,6 +9,12 @@ const cloudStore = window.egeCloudStore || null;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const subjects = {
+  social_oge: {
+    examType: "oge",
+    title: "Обществознание",
+    subtitle: "15 тестовых заданий",
+    sources: []
+  },
   social: {
     title: "Обществознание",
     subtitle: "16 заданий первой части",
@@ -48,6 +54,7 @@ installLocalSources();
 const initialAccess = loadAccess();
 
 const state = {
+  examType: null,
   screen: initialAccess ? "subjects" : "access",
   subjectId: null,
   sourceId: null,
@@ -141,8 +148,10 @@ function installLocalSources() {
     ...(window.localInteractiveSources || [])
   ];
   localSources.forEach((sourceItem) => {
-    const exists = subjects.social.sources.some((existing) => existing.id === sourceItem.id);
-    if (!exists) subjects.social.sources.unshift(sourceItem);
+    const subject = subjects[sourceItem.subjectId || "social"];
+    if (!subject) return;
+    const exists = subject.sources.some((existing) => existing.id === sourceItem.id);
+    if (!exists) subject.sources.unshift(sourceItem);
   });
 }
 
@@ -633,7 +642,7 @@ function variantProgress(variant = currentVariant()) {
 function show(screen) {
   state.screen = screen;
   Object.entries(nodes.screens).forEach(([name, node]) => node.classList.toggle("is-hidden", name !== screen));
-  nodes.backButton.classList.toggle("is-hidden", screen === "access" || screen === "subjects");
+  nodes.backButton.classList.toggle("is-hidden", screen === "access" || (screen === "subjects" && !state.examType));
   nodes.hero.classList.toggle("is-hidden", screen === "access" || screen === "exam" || screen === "result" || screen === "scan" || screen === "image" || screen === "teacher");
   render();
 }
@@ -652,14 +661,15 @@ function render() {
 }
 
 function renderAccess() {
-  nodes.eyebrow.textContent = "ЕГЭ · аккаунт";
+  nodes.eyebrow.textContent = "ЕГЭ и ОГЭ · аккаунт";
   nodes.resetAllButton.classList.add("is-hidden");
   setAuthMode(state.authMode);
 }
 
 function renderSubjects() {
-  nodes.eyebrow.textContent = "ЕГЭ · первая часть";
-  nodes.screenTitle.textContent = "Выбор предмета";
+  nodes.eyebrow.textContent = state.examType ? `${state.examType.toUpperCase() === "OGE" ? "ОГЭ" : "ЕГЭ"} · первая часть` : "Подготовка к экзаменам";
+  nodes.screenTitle.textContent = state.examType ? "Выбор предмета" : "ЕГЭ и ОГЭ";
+  nodes.backButton.classList.toggle("is-hidden", !state.examType);
   nodes.resetAllButton.classList.remove("is-hidden");
   nodes.subjectList.innerHTML = "";
   if (isTeacher()) {
@@ -670,7 +680,21 @@ function renderSubjects() {
     teacherCard.addEventListener("click", () => show("teacher"));
     nodes.subjectList.appendChild(teacherCard);
   }
-  Object.entries(subjects).forEach(([id, subject]) => {
+  if (!state.examType) {
+    for (const [examType, title, subtitle] of [["ege", "ЕГЭ", "11 класс"], ["oge", "ОГЭ", "9 класс"]]) {
+      const card = document.createElement("button");
+      card.className = "card exam-entry";
+      card.type = "button";
+      card.innerHTML = `<div><strong>${title}</strong><span>${subtitle}</span></div><i>›</i>`;
+      card.addEventListener("click", () => {
+        state.examType = examType;
+        state.subjectId = null;
+        show("subjects");
+      });
+      nodes.subjectList.appendChild(card);
+    }
+  }
+  Object.entries(subjects).filter(([, subject]) => state.examType && (subject.examType || "ege") === state.examType).forEach(([id, subject]) => {
     const completed = subject.sources.flatMap((sourceItem) => sourceItem.variants).filter((variant) => variantProgress(variant).completed).length;
     const card = document.createElement("button");
     card.className = "card";
@@ -688,6 +712,7 @@ function renderSubjects() {
   accountCard.innerHTML = `<div><strong>${state.access.name}</strong><span>${isTeacher() ? "Учитель" : "Ученик"} · ${state.access.login}</span><div class="badge-line"><b class="badge">выйти</b></div></div><i>×</i>`;
   accountCard.addEventListener("click", () => {
     clearAccess();
+    state.examType = null;
     nodes.studentNameInput.value = "";
     nodes.loginInput.value = "";
     nodes.accessCodeInput.value = "";
@@ -1247,7 +1272,12 @@ function findVariant(variantId) {
 }
 
 function goBack() {
-  if (state.screen === "sources") show("subjects");
+  if (state.screen === "subjects" && state.examType) {
+    state.examType = null;
+    state.subjectId = null;
+    show("subjects");
+  }
+  else if (state.screen === "sources") show("subjects");
   else if (state.screen === "variants") show("sources");
   else if (state.screen === "exam") show("variants");
   else if (state.screen === "scan") show("variants");
