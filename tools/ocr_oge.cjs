@@ -1,14 +1,14 @@
 const fs=require('node:fs'),path=require('node:path');
 const {createWorker}=require('tesseract.js');
 (async()=>{
-  const root='review/oge';fs.mkdirSync(`${root}/ocr`,{recursive:true});
+  const root=process.argv[3]||'review/oge';fs.mkdirSync(`${root}/ocr`,{recursive:true});
   const names=fs.readdirSync(`${root}/pages`).filter(n=>n.endsWith('.png')).sort((a,b)=>{
-    const priority=n=>/182|183/.test(n)?0:1;
+    const priority=n=>(root==='review/history' ? /^page-24[0-7]/.test(n) : /182|183/.test(n))?0:1;
     return priority(a)-priority(b)||a.localeCompare(b);
   });
   const queue=names.filter(n=>!fs.existsSync(`${root}/ocr/${n.replace('.png','.json')}`));
   const langPath=process.argv[2];
-  await Promise.all(Array.from({length:3},async()=>{
+  await Promise.all(Array.from({length:Number(process.argv[4])||3},async()=>{
     const worker=await createWorker('rus',1,langPath?{langPath,gzip:false,cachePath:`${root}/lang`}:{});
     try{
       while(queue.length){

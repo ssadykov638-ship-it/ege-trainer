@@ -1,5 +1,5 @@
 const STORAGE_KEY = "ege-open-access-progress-v1";
-const APP_VERSION = "20260917-14";
+const APP_VERSION = "20260917-17";
 const ACCESS_KEY = "ege-access-session-v1";
 const AUTH_DB_KEY = "ege-auth-db-v1";
 const DEVICE_KEY = "ege-device-id-v1";
@@ -9,6 +9,12 @@ const cloudStore = window.egeCloudStore || null;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const subjects = {
+  history_oge: {
+    examType: "oge",
+    title: "История",
+    subtitle: "17 заданий первой части",
+    sources: []
+  },
   social_oge: {
     examType: "oge",
     title: "Обществознание",
@@ -864,6 +870,57 @@ function renderQuestionNav(variant, progress) {
 
 function renderQuestionInput(question) {
   nodes.options.innerHTML = "";
+  if (question.context) {
+    const context = document.createElement("div");
+    context.className = "task-context";
+    question.context.forEach((text) => {
+      const paragraph = document.createElement("p");
+      paragraph.textContent = text;
+      context.appendChild(paragraph);
+    });
+    nodes.options.appendChild(context);
+  }
+  if (question.table) {
+    const data = question.table;
+    const wrapper = document.createElement("div");
+    wrapper.className = "task-table-wrap";
+    const table = document.createElement("table");
+    table.className = "task-table";
+    const caption = table.createCaption();
+    caption.textContent = data.caption;
+    const head = table.createTHead();
+    const groupRow = head.insertRow();
+    const label = document.createElement("th");
+    label.textContent = data.labelHeading;
+    label.rowSpan = 2;
+    label.scope = "col";
+    groupRow.appendChild(label);
+    data.groups.forEach((group) => {
+      const cell = document.createElement("th");
+      cell.textContent = group;
+      cell.colSpan = data.columns.length;
+      cell.scope = "colgroup";
+      groupRow.appendChild(cell);
+    });
+    const columnRow = head.insertRow();
+    data.groups.forEach(() => data.columns.forEach((column) => {
+      const cell = document.createElement("th");
+      cell.textContent = column;
+      cell.scope = "col";
+      columnRow.appendChild(cell);
+    }));
+    const body = table.createTBody();
+    data.rows.forEach(([name, ...values]) => {
+      const row = body.insertRow();
+      const heading = document.createElement("th");
+      heading.textContent = name;
+      heading.scope = "row";
+      row.appendChild(heading);
+      values.forEach((value) => { row.insertCell().textContent = value; });
+    });
+    wrapper.appendChild(table);
+    nodes.options.appendChild(wrapper);
+  }
   if (question.image) {
     const imageSrc = assetUrl(question.image);
     const figure = document.createElement("figure");
@@ -903,62 +960,24 @@ function renderQuestionInput(question) {
     return;
   }
 
-  if (question.type === "short") {
+  if (question.type === "short" || question.type === "digits") {
     const label = document.createElement("label");
     label.className = "short-row";
     label.innerHTML = "<span>Ответ</span>";
     const input = document.createElement("input");
     input.type = "text";
-    input.placeholder = "Введите слово или цифры";
+    const numeric = question.type === "digits";
+    input.inputMode = numeric ? "numeric" : "text";
+    if (numeric) input.pattern = "[0-9]*";
+    input.placeholder = numeric ? "Введите цифры" : "Введите слово или цифры";
     input.value = typeof state.selected === "string" ? state.selected : "";
     input.addEventListener("input", () => {
+      if (numeric) input.value = input.value.replace(/[^0-9]/g, "");
       state.selected = input.value;
-      renderExam();
+      nodes.nextButton.disabled = !hasAnswer(question);
     });
     label.appendChild(input);
     nodes.options.appendChild(label);
-    return;
-  }
-
-  if (question.type === "digits") {
-    const panel = document.createElement("div");
-    panel.className = "digit-answer";
-    const value = typeof state.selected === "string" ? state.selected : "";
-    panel.innerHTML = `<div class="digit-display" aria-label="Текущий ответ">${value || "Нажмите цифры"}</div>`;
-    const grid = document.createElement("div");
-    grid.className = "digit-grid";
-    "123456789".split("").forEach((digitValue) => {
-      const button = document.createElement("button");
-      button.className = "digit-button";
-      button.type = "button";
-      button.textContent = digitValue;
-      button.addEventListener("click", () => {
-        state.selected = `${typeof state.selected === "string" ? state.selected : ""}${digitValue}`;
-        renderExam();
-      });
-      grid.appendChild(button);
-    });
-    const backspace = document.createElement("button");
-    backspace.className = "ghost-button";
-    backspace.type = "button";
-    backspace.textContent = "Стереть";
-    backspace.addEventListener("click", () => {
-      state.selected = value.slice(0, -1);
-      renderExam();
-    });
-    const clear = document.createElement("button");
-    clear.className = "ghost-button";
-    clear.type = "button";
-    clear.textContent = "Очистить";
-    clear.addEventListener("click", () => {
-      state.selected = "";
-      renderExam();
-    });
-    const tools = document.createElement("div");
-    tools.className = "digit-tools";
-    tools.append(backspace, clear);
-    panel.append(grid, tools);
-    nodes.options.appendChild(panel);
     return;
   }
 
@@ -1089,7 +1108,7 @@ function renderTeacher() {
 function taskTypeLabel(question) {
   if (question.type === "match") return "Сопоставление: заполните таблицу цифрами";
   if (question.type === "short") return "Краткий ответ: введите слово или число";
-  if (question.type === "digits") return "Ответ цифрами: нажмите цифры";
+  if (question.type === "digits") return "Краткий ответ: введите цифры";
   if (question.type === "multi") return "Несколько ответов: выберите цифры";
   return "Один ответ";
 }
