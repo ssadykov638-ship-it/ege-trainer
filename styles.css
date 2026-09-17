@@ -384,7 +384,8 @@ h2 {
 }
 
 .task-media.is-chart img {
-  max-height: 330px;
+  height: auto;
+  max-height: none;
   object-fit: contain;
 }
 
