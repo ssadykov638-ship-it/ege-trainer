@@ -2,7 +2,9 @@
 
 ## Published scope
 
-Only variant 1 is adapted and verified. Variants 2-30 are NOT adapted yet.
+Variants 1-2 are adapted and verified. Variants 3-30 are NOT adapted yet.
+Variant 2: all 17 source tasks and keys checked against pages 11-16 and 240;
+shared map retains its legend, table is native HTML, and 51 viewport renders pass.
 The user approved the sample, requested the remaining variants and authorized
 GitHub publication. Publication of the verified sample is incremental work,
 not fulfillment of the remaining-variants request.

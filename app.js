@@ -1,5 +1,5 @@
 const STORAGE_KEY = "ege-open-access-progress-v1";
-const APP_VERSION = "20260917-17";
+const APP_VERSION = "20260917-18";
 const ACCESS_KEY = "ege-access-session-v1";
 const AUTH_DB_KEY = "ege-auth-db-v1";
 const DEVICE_KEY = "ege-device-id-v1";
@@ -891,10 +891,17 @@ function renderQuestionInput(question) {
     const head = table.createTHead();
     const groupRow = head.insertRow();
     const label = document.createElement("th");
-    label.textContent = data.labelHeading;
-    label.rowSpan = 2;
+    label.textContent = data.headers ? data.headers[0] : data.labelHeading;
+    label.rowSpan = data.headers ? 1 : 2;
     label.scope = "col";
     groupRow.appendChild(label);
+    if (data.headers) data.headers.slice(1).forEach((heading) => {
+      const cell = document.createElement("th");
+      cell.textContent = heading;
+      cell.scope = "col";
+      groupRow.appendChild(cell);
+    });
+    else {
     data.groups.forEach((group) => {
       const cell = document.createElement("th");
       cell.textContent = group;
@@ -909,6 +916,7 @@ function renderQuestionInput(question) {
       cell.scope = "col";
       columnRow.appendChild(cell);
     }));
+    }
     const body = table.createTBody();
     data.rows.forEach(([name, ...values]) => {
       const row = body.insertRow();
