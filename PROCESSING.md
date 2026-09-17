@@ -42,6 +42,8 @@ python tools/review_charts.py
 python -m http.server 4173
 # В другом терминале, с установленным Playwright и Chrome:
 node tools/verify_variants.cjs
+node tools/verify_answers.cjs
+python tools/verify_answer_keys.py --source-root SOURCE_ROOT
 git diff --check
 ```
 
