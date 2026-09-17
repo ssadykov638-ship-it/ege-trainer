@@ -240,7 +240,8 @@
         60,
         61,
         62,
-        63
+        63,
+        64
       ],
       "sourceTasks": [
         1,
@@ -262,7 +263,7 @@
         17
       ],
       "answerPage": 242,
-      "adaptationStatus": "OCR only; not adapted"
+      "adaptationStatus": "Verified against source pages and answer key"
     },
     {
       "variant": 9,
