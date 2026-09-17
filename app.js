@@ -1,5 +1,5 @@
 const STORAGE_KEY = "ege-open-access-progress-v1";
-const APP_VERSION = "20260917-06";
+const APP_VERSION = "20260917-07";
 const ACCESS_KEY = "ege-access-session-v1";
 const AUTH_DB_KEY = "ege-auth-db-v1";
 const DEVICE_KEY = "ege-device-id-v1";
@@ -842,7 +842,7 @@ function renderQuestionInput(question) {
   if (question.image) {
     const imageSrc = assetUrl(question.image);
     const figure = document.createElement("figure");
-    figure.className = "task-media";
+    figure.className = `task-media${question.isChart ? " is-chart" : ""}`;
     figure.setAttribute("role", "button");
     figure.setAttribute("tabindex", "0");
     figure.setAttribute("aria-label", "Открыть материал крупно");

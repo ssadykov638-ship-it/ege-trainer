@@ -341,8 +341,13 @@ h2 {
 
 .task-card h2 {
   white-space: pre-line;
-  font-size: 20px;
-  line-height: 1.22;
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.task-card:has(.task-media.is-chart) h2 {
+  font-size: 17px;
+  line-height: 1.28;
 }
 
 .options {
@@ -370,6 +375,16 @@ h2 {
 .task-media img {
   width: 100%;
   display: block;
+  object-fit: contain;
+}
+
+.task-media.is-chart {
+  padding: 8px;
+  background: #fff;
+}
+
+.task-media.is-chart img {
+  max-height: 330px;
   object-fit: contain;
 }
 
