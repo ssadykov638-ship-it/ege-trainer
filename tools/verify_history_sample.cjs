@@ -412,6 +412,25 @@ const { chromium } = require('playwright');
         await page.screenshot({path:`review/history/v15-${width}-q${i+1}.png`,fullPage:true});
       }
     }
-    console.log('255 source keys, alternate answers, shared maps, native tables and 765 viewport renders verified.');
+    await page.setViewportSize({width:320,height:900});
+    await page.evaluate(()=>{
+      const variant=subjects.history_oge.sources[0].variants[14];
+      const progress=state.progress[variant.id];
+      progress.completed=true;
+      progress.answers={0:{matching:{0:'0',1:'0',2:'0'}},1:{selected:'2413'}};
+      show('result');
+    });
+    assert.equal(await page.locator('#reviewList').isVisible(),false,'Mistake review must start closed');
+    assert.equal(await page.locator('#mistakesReviewButton').isVisible(),true,'Mistake review button missing');
+    await page.locator('#mistakesReviewButton').click();
+    assert.equal(await page.locator('#reviewList').isVisible(),true,'Mistake review did not open');
+    assert.equal(await page.locator('#reviewList .review-item').count(),16,'Only incorrect tasks must be shown');
+    assert.match(await page.locator('#reviewList .review-item').first().innerText(),/Ответ ученика:/);
+    assert.match(await page.locator('#reviewList .review-item').first().innerText(),/Правильно:/);
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'Result review overflow');
+    await page.screenshot({path:'review/history/mistake-review-320.png',fullPage:true});
+    await page.locator('#mistakesReviewButton').click();
+    assert.equal(await page.locator('#reviewList').isVisible(),false,'Mistake review did not close');
+    console.log('255 source keys, alternate answers, shared maps, native tables, 765 viewport renders and mistake review verified.');
   } finally { await browser.close(); }
 })().catch(error=>{console.error(error);process.exitCode=1;});

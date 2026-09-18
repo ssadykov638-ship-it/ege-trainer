@@ -762,6 +762,13 @@ h2 {
   margin-top: 12px;
 }
 
+.review-toggle {
+  flex-basis: 100%;
+  border: 1px solid var(--teal);
+  color: #17665f;
+  background: var(--teal-soft);
+}
+
 .review-item {
   padding: 12px;
   border: 1px solid var(--line);

@@ -1,5 +1,5 @@
 const STORAGE_KEY = "ege-open-access-progress-v1";
-const APP_VERSION = "20260918-31";
+const APP_VERSION = "20260918-32";
 const ACCESS_KEY = "ege-access-session-v1";
 const AUTH_DB_KEY = "ege-auth-db-v1";
 const DEVICE_KEY = "ege-device-id-v1";
@@ -68,6 +68,7 @@ const state = {
   questionIndex: 0,
   selected: null,
   matching: {},
+  reviewOpen: false,
   progress: loadProgress(initialAccess),
   cloudHomework: [],
   cloudStudents: [],
@@ -111,6 +112,7 @@ const nodes = {
   resultTitle: document.querySelector("#resultTitle"),
   resultText: document.querySelector("#resultText"),
   reviewList: document.querySelector("#reviewList"),
+  mistakesReviewButton: document.querySelector("#mistakesReviewButton"),
   scanMeta: document.querySelector("#scanMeta"),
   scanCount: document.querySelector("#scanCount"),
   scanPages: document.querySelector("#scanPages"),
@@ -646,6 +648,7 @@ function variantProgress(variant = currentVariant()) {
 }
 
 function show(screen) {
+  if (screen === "result" && state.screen !== "result") state.reviewOpen = false;
   state.screen = screen;
   Object.entries(nodes.screens).forEach(([name, node]) => node.classList.toggle("is-hidden", name !== screen));
   nodes.backButton.classList.toggle("is-hidden", screen === "access" || (screen === "subjects" && !state.examType));
@@ -1023,7 +1026,11 @@ function renderResult() {
   nodes.screenTitle.textContent = "Итог";
   nodes.resultMeta.textContent = `${currentSubject().title} · ${currentSource().year} · ${variant.title}`;
   nodes.resultTitle.textContent = `${correct}/${variantLength(variant)}`;
-  nodes.resultText.textContent = mistakes === 0 ? "Вариант закрыт идеально." : `Ошибок: ${mistakes}. Ниже разбор только проблемных заданий.`;
+  nodes.resultText.textContent = mistakes === 0 ? "Вариант закрыт идеально." : `Ошибок: ${mistakes}. Можно открыть разбор проблемных заданий.`;
+  nodes.mistakesReviewButton.classList.toggle("is-hidden", mistakes === 0);
+  nodes.mistakesReviewButton.textContent = state.reviewOpen ? "Скрыть разбор" : "Разбор ошибок";
+  nodes.mistakesReviewButton.setAttribute("aria-expanded", String(state.reviewOpen));
+  nodes.reviewList.classList.toggle("is-hidden", !state.reviewOpen);
   nodes.repeatButton.disabled = Boolean(homework) && !isTeacher();
   nodes.repeatButton.textContent = homework && !isTeacher() ? "Попытка закрыта" : "Повторить";
   nodes.reviewList.innerHTML = "";
@@ -1035,7 +1042,7 @@ function renderResult() {
     const title = document.createElement("strong");
     title.textContent = `${index + 1}. ${question.text}`;
     const userAnswer = document.createElement("span");
-    userAnswer.textContent = `Ответ: ${formatAnswer(question, answer)}`;
+    userAnswer.textContent = `Ответ ученика: ${formatAnswer(question, answer)}`;
     const correctAnswer = document.createElement("span");
     correctAnswer.textContent = `Правильно: ${formatCorrect(question)}`;
     const explanation = document.createElement("p");
@@ -1348,6 +1355,10 @@ nodes.skipButton.addEventListener("click", skipCurrentQuestion);
 nodes.restartVariantButton.addEventListener("click", restartCurrentVariant);
 nodes.completeScanVariantButton.addEventListener("click", completeCurrentScanVariant);
 nodes.repeatButton.addEventListener("click", restartCurrentVariant);
+nodes.mistakesReviewButton.addEventListener("click", () => {
+  state.reviewOpen = !state.reviewOpen;
+  renderResult();
+});
 nodes.nextVariantButton.addEventListener("click", () => {
   state.variantIndex = (state.variantIndex + 1) % currentSource().variants.length;
   restartCurrentVariant();
