@@ -1,0 +1,21 @@
+from pathlib import Path
+
+import pypdfium2 as pdf
+
+
+document = pdf.PdfDocument(r'C:\Users\Sellers Point\Downloads\Telegram Desktop\История ОГЭ 2026.pdf')
+target = Path('assets/oge-history/v16')
+target.mkdir(parents=True, exist_ok=True)
+
+regions = {
+    'map.png': (123, (100 / 1334, 700 / 1888, 1235 / 1334, 1420 / 1888)),
+    'medal.png': (124, (290 / 1334, 600 / 1888, 1160 / 1334, 1035 / 1888)),
+    'schema.png': (124, (180 / 1334, 1400 / 1888, 1250 / 1334, 1615 / 1888)),
+    'culture.png': (125, (180 / 1334, 300 / 1888, 1130 / 1334, 835 / 1888)),
+}
+
+for name, (page, fractions) in regions.items():
+    image = document[page - 1].render(scale=3).to_pil()
+    width, height = image.size
+    box = tuple(round(value * (width if index % 2 == 0 else height)) for index, value in enumerate(fractions))
+    image.crop(box).save(target / name)

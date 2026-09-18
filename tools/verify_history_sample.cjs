@@ -12,7 +12,7 @@ const { chromium } = require('playwright');
     const keys = ['431','1324','Уложенная комиссия','23','5','1423','245','двенадцатый','Юрий Долгорукий','3','3','Борис Годунов','34','5','3','1','4'];
     await page.evaluate(keys => {
       const source = subjects.history_oge.sources[0];
-      if (source.variants.length !== 15) throw Error('Expected fifteen verified variants');
+      if (source.variants.length !== 16) throw Error('Expected sixteen verified variants');
       const variant = source.variants[0];
       if (variant.questions.length !== 17) throw Error('Missing tasks');
       variant.questions.forEach((q, i) => {
@@ -412,10 +412,36 @@ const { chromium } = require('playwright');
         await page.screenshot({path:`review/history/v15-${width}-q${i+1}.png`,fullPage:true});
       }
     }
+    const keys16=['513','1324','большая соха','23','3','4123','142','Тарутино','Наполеон Бонапарт','3','2','Варяг','35','4','1','4','2'];
+    await page.evaluate(keys=>{
+      const variant=subjects.history_oge.sources[0].variants[15];
+      variant.questions.forEach((q,i)=>{
+        if(q.sourceTask!==i+1||q.sourceVariant!==16)throw Error('Variant 16 mapping');
+        const key=keys[i];
+        const answer=q.type==='match'?{matching:Object.fromEntries([...key].map((d,j)=>[j,String(Number(d)-1)]))}:q.type==='multi'?{selected:[...key].map(d=>Number(d)-1).reverse()}:q.type==='single'?{selected:Number(key)-1}:{selected:key};
+        if(!isCorrect(q,answer))throw Error(`Variant 16 key ${i+1}`);
+      });
+      if(!isCorrect(variant.questions[5],{selected:'2341'}))throw Error('Variant 16 alternate order');
+      if(!isCorrect(variant.questions[8],{selected:'Наполеон Первый'}))throw Error('Variant 16 alternate commander');
+      if(variant.questions.slice(7,10).some(q=>q.image!==variant.questions[7].image))throw Error('Variant 16 shared map');
+      state.variantIndex=15;state.variantId=variant.id;
+    },keys16);
+    for(const width of [320,390,1280]){
+      await page.setViewportSize({width,height:900});
+      for(let i=0;i<17;i++){
+        await page.evaluate(i=>{state.questionIndex=i;clearDraft();show('exam');},i);
+        await page.locator('.task-media img').evaluateAll(images=>Promise.all(images.map(img=>img.decode())));
+        assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`Variant 16 overflow ${width}.${i+1}`);
+        if(i===6)assert.deepEqual(await page.locator('.task-table tbody td').allTextContents(),['37,7','54,5','84,8','74,1','105,2','197,0']);
+        await page.screenshot({path:`review/history/v16-${width}-q${i+1}.png`,fullPage:true});
+      }
+    }
     await page.setViewportSize({width:320,height:900});
     await page.evaluate(()=>{
       const variant=subjects.history_oge.sources[0].variants[14];
       const progress=state.progress[variant.id];
+      state.variantIndex=14;
+      state.variantId=variant.id;
       progress.completed=true;
       progress.answers={0:{matching:{0:'0',1:'0',2:'0'}},1:{selected:'2413'}};
       show('result');
@@ -431,6 +457,6 @@ const { chromium } = require('playwright');
     await page.screenshot({path:'review/history/mistake-review-320.png',fullPage:true});
     await page.locator('#mistakesReviewButton').click();
     assert.equal(await page.locator('#reviewList').isVisible(),false,'Mistake review did not close');
-    console.log('255 source keys, alternate answers, shared maps, native tables, 765 viewport renders and mistake review verified.');
+    console.log('272 source keys, alternate answers, shared maps, native tables, 816 viewport renders and mistake review verified.');
   } finally { await browser.close(); }
 })().catch(error=>{console.error(error);process.exitCode=1;});
