@@ -2,7 +2,7 @@
 
 ## Published scope
 
-Variants 1-13 are adapted and verified. Variants 14-30 are NOT adapted yet.
+Variants 1-14 are adapted and verified. Variants 15-30 are NOT adapted yet.
 Variant 2: all 17 source tasks and keys checked against pages 11-16 and 240;
 shared map retains its legend, table is native HTML, and 51 viewport renders pass.
 Variant 3: all 17 source tasks and keys checked against pages 19-24 and 241;
@@ -26,6 +26,8 @@ shared map retains its legend, table is native HTML, and 51 viewport renders pas
 Variant 12: all 17 source tasks and keys checked against pages 90-94 and 243;
 shared map retains its legend, table is native HTML, and 51 viewport renders pass.
 Variant 13: all 17 source tasks and keys checked against pages 97-102 and 243;
+shared map retains its legend, table is native HTML, and 51 viewport renders pass.
+Variant 14: all 17 source tasks and keys checked against pages 105-110 and 243;
 shared map retains its legend, table is native HTML, and 51 viewport renders pass.
 The user approved the sample, requested the remaining variants and authorized
 GitHub publication. Publication of the verified sample is incremental work,
