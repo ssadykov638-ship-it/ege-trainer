@@ -380,6 +380,20 @@ h2 {
   font-variant-numeric: tabular-nums;
 }
 
+.task-table.is-wide {
+  min-width: 520px;
+  table-layout: auto;
+}
+
+.task-table.is-wide th,
+.task-table.is-wide td {
+  overflow-wrap: normal;
+}
+
+.task-table.is-wide td {
+  white-space: nowrap;
+}
+
 .task-table caption {
   text-align: left;
   font-size: 14px;

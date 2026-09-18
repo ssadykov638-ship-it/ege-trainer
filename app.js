@@ -1,5 +1,5 @@
 const STORAGE_KEY = "ege-open-access-progress-v1";
-const APP_VERSION = "20260917-27";
+const APP_VERSION = "20260918-28";
 const ACCESS_KEY = "ege-access-session-v1";
 const AUTH_DB_KEY = "ege-auth-db-v1";
 const DEVICE_KEY = "ege-device-id-v1";
@@ -886,6 +886,7 @@ function renderQuestionInput(question) {
     wrapper.className = "task-table-wrap";
     const table = document.createElement("table");
     table.className = "task-table";
+    if (data.groups || (data.headers && data.headers.length > 4)) table.classList.add("is-wide");
     const caption = table.createCaption();
     caption.textContent = data.caption;
     const head = table.createTHead();
