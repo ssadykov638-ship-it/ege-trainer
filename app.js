@@ -1,5 +1,5 @@
 const STORAGE_KEY = "ege-open-access-progress-v1";
-const APP_VERSION = "20260918-34";
+const APP_VERSION = "20260919-35";
 const ACCESS_KEY = "ege-access-session-v1";
 const AUTH_DB_KEY = "ege-auth-db-v1";
 const DEVICE_KEY = "ege-device-id-v1";
@@ -905,6 +905,7 @@ function renderQuestionInput(question) {
     const table = document.createElement("table");
     table.className = "task-table";
     if (data.groups || (data.headers && data.headers.length > 4)) table.classList.add("is-wide");
+    if (data.groups) table.classList.add("is-grouped");
     const caption = table.createCaption();
     caption.textContent = data.caption;
     const head = table.createTHead();
@@ -946,6 +947,7 @@ function renderQuestionInput(question) {
       values.forEach((value) => { row.insertCell().textContent = value; });
     });
     wrapper.appendChild(table);
+    if (data.groups) appendGroupedTableCards(wrapper, data);
     nodes.options.appendChild(wrapper);
   }
   if (question.image) {
@@ -1093,6 +1095,7 @@ function appendReviewQuestionDetails(item, question) {
     const table = document.createElement("table");
     table.className = "task-table";
     if (data.groups || (data.headers && data.headers.length > 4)) table.classList.add("is-wide");
+    if (data.groups) table.classList.add("is-grouped");
     table.createCaption().textContent = data.caption;
     const head = table.createTHead();
     const groupRow = head.insertRow();
@@ -1134,6 +1137,7 @@ function appendReviewQuestionDetails(item, question) {
       values.forEach((value) => { row.insertCell().textContent = value; });
     });
     wrapper.appendChild(table);
+    if (data.groups) appendGroupedTableCards(wrapper, data);
     item.appendChild(wrapper);
   }
   if (question.image) {
@@ -1168,6 +1172,33 @@ function appendReviewQuestionDetails(item, question) {
     });
   }
   if (options.children.length) item.appendChild(options);
+}
+
+function appendGroupedTableCards(wrapper, data) {
+  const cards = document.createElement("div");
+  cards.className = "grouped-table-cards";
+  const caption = document.createElement("strong");
+  caption.className = "grouped-table-caption";
+  caption.textContent = data.caption;
+  cards.appendChild(caption);
+  data.rows.forEach(([label, ...values]) => {
+    const card = document.createElement("section");
+    card.className = "grouped-table-card";
+    const heading = document.createElement("strong");
+    heading.textContent = `${data.labelHeading}: ${label}`;
+    card.appendChild(heading);
+    data.groups.forEach((group, groupIndex) => {
+      const row = document.createElement("div");
+      const groupName = document.createElement("b");
+      groupName.textContent = group;
+      const details = document.createElement("span");
+      details.textContent = data.columns.map((column, columnIndex) => `${column}: ${values[groupIndex * data.columns.length + columnIndex]}`).join(" · ");
+      row.append(groupName, details);
+      card.appendChild(row);
+    });
+    cards.appendChild(card);
+  });
+  wrapper.appendChild(cards);
 }
 
 function renderStats() {

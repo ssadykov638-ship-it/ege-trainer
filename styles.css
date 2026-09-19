@@ -452,6 +452,10 @@ h2 {
   background: #f7f9f9;
 }
 
+.grouped-table-cards {
+  display: none;
+}
+
 .task-context {
   min-width: 0;
   font-size: 15px;
@@ -895,6 +899,49 @@ h2 {
 }
 
 @media (max-width: 470px) {
+  .task-table.is-grouped {
+    display: none;
+  }
+
+  .grouped-table-cards {
+    display: grid;
+    gap: 8px;
+  }
+
+  .grouped-table-caption {
+    font-size: 13px;
+    line-height: 1.35;
+  }
+
+  .grouped-table-card {
+    display: grid;
+    gap: 7px;
+    padding: 10px;
+    border: 1px solid #d5e1df;
+    border-radius: 9px;
+    background: #f8fbfa;
+  }
+
+  .grouped-table-card > strong {
+    color: #225b54;
+    font-size: 13px;
+  }
+
+  .grouped-table-card div {
+    display: grid;
+    gap: 2px;
+  }
+
+  .grouped-table-card b,
+  .grouped-table-card span {
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  .grouped-table-card span {
+    color: var(--muted);
+  }
+
   .workspace {
     padding: 0;
     display: block;
