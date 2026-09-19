@@ -214,12 +214,36 @@ h2 {
 }
 
 .variant-open {
+  width: 100%;
   min-width: 0;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 12px;
   border: 0;
   background: transparent;
   color: inherit;
   padding: 0;
   text-align: left;
+}
+
+.variant-score {
+  color: inherit !important;
+  font: inherit !important;
+}
+
+.variant-card.has-retry {
+  grid-template-columns: 1fr;
+}
+
+.variant-retry {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid rgba(30, 119, 109, 0.28);
+  border-radius: 10px;
+  background: var(--teal-soft);
+  color: var(--teal);
+  font-weight: 800;
 }
 
 .variant-action {
@@ -232,7 +256,8 @@ h2 {
   color: var(--coral);
 }
 
-.card.is-locked {
+.card.is-locked,
+.variant-card.is-locked {
   opacity: 0.64;
 }
 
@@ -792,6 +817,45 @@ h2 {
   color: var(--muted);
   font-size: 13px;
   line-height: 1.35;
+}
+
+.review-context,
+.review-options,
+.review-table,
+.review-media {
+  margin-top: 10px;
+}
+
+.review-options {
+  display: grid;
+  gap: 5px;
+  padding: 9px;
+  border-radius: 8px;
+  background: var(--soft);
+}
+
+.review-options p,
+.review-context p {
+  margin: 0;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.review-answer {
+  padding: 8px 9px;
+  border-radius: 8px;
+  font-weight: 700;
+}
+
+.review-answer.is-user {
+  background: #fff1ed;
+  color: #9d3426;
+}
+
+.review-answer.is-correct {
+  background: var(--teal-soft);
+  color: #17665f;
 }
 
 .scan-pages {

@@ -1,5 +1,5 @@
 const STORAGE_KEY = "ege-open-access-progress-v1";
-const APP_VERSION = "20260918-33";
+const APP_VERSION = "20260918-34";
 const ACCESS_KEY = "ege-access-session-v1";
 const AUTH_DB_KEY = "ege-auth-db-v1";
 const DEVICE_KEY = "ege-device-id-v1";
@@ -80,7 +80,6 @@ const state = {
 
 const nodes = {
   backButton: document.querySelector("#backButton"),
-  resetAllButton: document.querySelector("#resetAllButton"),
   eyebrow: document.querySelector("#eyebrow"),
   screenTitle: document.querySelector("#screenTitle"),
   hero: document.querySelector("#hero"),
@@ -641,10 +640,16 @@ function variantLength(variant) {
 
 function variantProgress(variant = currentVariant()) {
   if (!state.progress[variant.id]) {
-    state.progress[variant.id] = { completed: false, best: 0, answers: {}, skipped: {} };
+    state.progress[variant.id] = { completed: false, best: 0, attempts: [], answers: {}, skipped: {} };
   }
-  if (!state.progress[variant.id].skipped) state.progress[variant.id].skipped = {};
-  return state.progress[variant.id];
+  const progress = state.progress[variant.id];
+  if (!progress.skipped) progress.skipped = {};
+  if (!Array.isArray(progress.attempts)) {
+    progress.attempts = progress.completed && !isScanVariant(variant)
+      ? [{ score: Number(progress.best) || countCorrect(variant, progress), total: variantLength(variant) }]
+      : [];
+  }
+  return progress;
 }
 
 function show(screen) {
@@ -671,7 +676,6 @@ function render() {
 
 function renderAccess() {
   nodes.eyebrow.textContent = "ЕГЭ и ОГЭ · аккаунт";
-  nodes.resetAllButton.classList.add("is-hidden");
   setAuthMode(state.authMode);
 }
 
@@ -679,7 +683,6 @@ function renderSubjects() {
   nodes.eyebrow.textContent = state.examType ? `${state.examType.toUpperCase() === "OGE" ? "ОГЭ" : "ЕГЭ"} · первая часть` : "Подготовка к экзаменам";
   nodes.screenTitle.textContent = state.examType ? "Выбор предмета" : "ЕГЭ и ОГЭ";
   nodes.backButton.classList.toggle("is-hidden", !state.examType);
-  nodes.resetAllButton.classList.remove("is-hidden");
   nodes.subjectList.innerHTML = "";
   if (isTeacher()) {
     const teacherCard = document.createElement("button");
@@ -734,10 +737,9 @@ function renderSubjects() {
 function renderSources() {
   nodes.eyebrow.textContent = currentSubject().title;
   nodes.screenTitle.textContent = "Источник";
-  nodes.resetAllButton.classList.remove("is-hidden");
   nodes.sourceList.innerHTML = "";
   currentSubject().sources.forEach((sourceItem) => {
-    const completed = sourceItem.variants.filter((variant) => variantProgress(variant).completed).length;
+    const completed = sourceItem.variants.filter((variant) => hasRecordedResult(variant, variantProgress(variant))).length;
     const card = document.createElement("button");
     card.className = "card";
     card.type = "button";
@@ -754,7 +756,6 @@ function renderSources() {
 function renderVariants() {
   nodes.eyebrow.textContent = currentSource().authorLine || currentSource().title;
   nodes.screenTitle.textContent = "Варианты";
-  nodes.resetAllButton.classList.remove("is-hidden");
   nodes.variantList.innerHTML = "";
   if (state.variantNotice) {
     const notice = document.createElement("p");
@@ -766,17 +767,25 @@ function renderVariants() {
     const progress = variantProgress(variant);
     const answered = Object.keys(progress.answers).length;
     const length = variantLength(variant);
-    const statusText = isScanVariant(variant) ? `${length} ${pageWord(length)} первой части` : `${answered}/${length} заданий`;
+    const latest = latestAttempt(progress);
+    const hasResult = hasRecordedResult(variant, progress);
+    const statusText = isScanVariant(variant)
+      ? `${length} ${pageWord(length)} первой части`
+      : progress.completed && latest
+        ? `Результат: ${latest.score}/${latest.total}`
+        : `${answered}/${length} заданий`;
     const homework = homeworkForVariant(variant);
     const locked = isControlLocked(variant);
-    const card = document.createElement(isTeacher() ? "article" : "button");
+    const card = document.createElement("article");
     card.className = `variant-card${locked ? " is-locked" : ""}`;
-    if (!isTeacher()) {
-      card.type = "button";
-      card.disabled = locked;
-    }
-    const actionLabel = locked ? "попытка завершена" : progress.completed ? (isScanVariant(variant) ? "решен" : `лучший ${progress.best}`) : "не завершен";
-    const cardBody = `<div><strong>${variant.title}</strong><span>${statusText}</span><div class="progress-track"><div class="progress-fill" style="width:${isScanVariant(variant) ? (progress.completed ? 100 : 0) : answered / length * 100}%"></div></div><div class="badge-line">${homework ? "<b class=\"badge\">ДЗ</b>" : ""}<b class="badge">${actionLabel}</b></div></div>`;
+    const title = latest && !isScanVariant(variant) ? `${variant.title} <span class="variant-score">(${latest.score}/${latest.total})</span>` : variant.title;
+    const actionLabel = locked
+      ? "попытка завершена"
+      : hasResult
+        ? (isScanVariant(variant) ? "решен" : `лучший ${progress.best}/${length}`)
+        : "не завершен";
+    const completion = isScanVariant(variant) ? (progress.completed ? 100 : 0) : answered / length * 100;
+    const cardBody = `<div><strong>${title}</strong><span>${statusText}</span><div class="progress-track"><div class="progress-fill" style="width:${completion}%"></div></div><div class="badge-line">${homework ? "<b class=\"badge\">ДЗ</b>" : ""}<b class="badge">${actionLabel}</b>${latest && progress.attempts.length > 1 ? `<b class="badge">попыток ${progress.attempts.length}</b>` : ""}</div></div>`;
     if (isTeacher()) {
       card.innerHTML = `<button class="variant-open" type="button">${cardBody}</button><button class="variant-action" type="button" aria-label="${homework ? "Убрать из ДЗ" : "Добавить в ДЗ"}" title="${homework ? "Убрать из ДЗ" : "Добавить в ДЗ"}">${homework ? "−" : "+"}</button>`;
       card.querySelector(".variant-open").addEventListener("click", () => openVariant(index, variant, progress));
@@ -785,8 +794,14 @@ function renderVariants() {
         renderVariants();
       });
     } else {
-      card.innerHTML = `${cardBody}<i>${locked ? "✓" : "›"}</i>`;
-      card.addEventListener("click", () => openVariant(index, variant, progress));
+      const canRetry = progress.completed && !locked && !isScanVariant(variant);
+      card.classList.toggle("has-retry", canRetry);
+      card.innerHTML = `<button class="variant-open" type="button"${locked ? " disabled" : ""}>${cardBody}<i>${locked ? "✓" : "›"}</i></button>${canRetry ? '<button class="variant-retry" type="button">Решить ещё раз</button>' : ""}`;
+      card.querySelector(".variant-open").addEventListener("click", () => openVariant(index, variant, progress));
+      card.querySelector(".variant-retry")?.addEventListener("click", () => {
+        state.variantIndex = index;
+        restartCurrentVariant();
+      });
     }
     nodes.variantList.appendChild(card);
   });
@@ -1041,13 +1056,15 @@ function renderResult() {
     item.className = "review-item";
     const title = document.createElement("strong");
     title.textContent = `${index + 1}. ${question.text}`;
+    item.appendChild(title);
+    appendReviewQuestionDetails(item, question);
     const userAnswer = document.createElement("span");
+    userAnswer.className = "review-answer is-user";
     userAnswer.textContent = `Ответ ученика: ${formatAnswer(question, answer)}`;
     const correctAnswer = document.createElement("span");
+    correctAnswer.className = "review-answer is-correct";
     correctAnswer.textContent = `Правильно: ${formatCorrect(question)}`;
-    const explanation = document.createElement("p");
-    explanation.textContent = question.explanation;
-    item.append(title, userAnswer, correctAnswer, explanation);
+    item.append(userAnswer, correctAnswer);
     nodes.reviewList.appendChild(item);
   });
   if (!nodes.reviewList.children.length) {
@@ -1058,15 +1075,110 @@ function renderResult() {
   }
 }
 
+function appendReviewQuestionDetails(item, question) {
+  if (question.context) {
+    const context = document.createElement("div");
+    context.className = "task-context review-context";
+    question.context.forEach((text) => {
+      const paragraph = document.createElement("p");
+      paragraph.textContent = text;
+      context.appendChild(paragraph);
+    });
+    item.appendChild(context);
+  }
+  if (question.table) {
+    const data = question.table;
+    const wrapper = document.createElement("div");
+    wrapper.className = "task-table-wrap review-table";
+    const table = document.createElement("table");
+    table.className = "task-table";
+    if (data.groups || (data.headers && data.headers.length > 4)) table.classList.add("is-wide");
+    table.createCaption().textContent = data.caption;
+    const head = table.createTHead();
+    const groupRow = head.insertRow();
+    const label = document.createElement("th");
+    label.textContent = data.headers ? data.headers[0] : data.labelHeading;
+    label.rowSpan = data.headers ? 1 : 2;
+    label.scope = "col";
+    groupRow.appendChild(label);
+    if (data.headers) {
+      data.headers.slice(1).forEach((heading) => {
+        const cell = document.createElement("th");
+        cell.textContent = heading;
+        cell.scope = "col";
+        groupRow.appendChild(cell);
+      });
+    } else {
+      data.groups.forEach((group) => {
+        const cell = document.createElement("th");
+        cell.textContent = group;
+        cell.colSpan = data.columns.length;
+        cell.scope = "colgroup";
+        groupRow.appendChild(cell);
+      });
+      const columnRow = head.insertRow();
+      data.groups.forEach(() => data.columns.forEach((column) => {
+        const cell = document.createElement("th");
+        cell.textContent = column;
+        cell.scope = "col";
+        columnRow.appendChild(cell);
+      }));
+    }
+    const body = table.createTBody();
+    data.rows.forEach(([name, ...values]) => {
+      const row = body.insertRow();
+      const heading = document.createElement("th");
+      heading.textContent = name;
+      heading.scope = "row";
+      row.appendChild(heading);
+      values.forEach((value) => { row.insertCell().textContent = value; });
+    });
+    wrapper.appendChild(table);
+    item.appendChild(wrapper);
+  }
+  if (question.image) {
+    const figure = document.createElement("figure");
+    figure.className = `task-media review-media${question.isChart ? " is-chart" : ""}`;
+    const image = document.createElement("img");
+    image.src = assetUrl(question.image);
+    image.alt = question.alt || "Материал к заданию";
+    figure.appendChild(image);
+    item.appendChild(figure);
+  }
+  const options = document.createElement("div");
+  options.className = "review-options";
+  if (question.type === "match") {
+    question.left.forEach((text, index) => {
+      const row = document.createElement("p");
+      row.textContent = `${letter(index)}) ${text}`;
+      options.appendChild(row);
+    });
+    question.right.forEach((text, index) => {
+      const row = document.createElement("p");
+      row.className = "review-option";
+      row.textContent = `${index + 1}) ${text}`;
+      options.appendChild(row);
+    });
+  } else if (question.options) {
+    question.options.forEach((text, index) => {
+      const row = document.createElement("p");
+      row.className = "review-option";
+      row.textContent = `${index + 1}) ${text}`;
+      options.appendChild(row);
+    });
+  }
+  if (options.children.length) item.appendChild(options);
+}
+
 function renderStats() {
   const values = Object.entries(state.progress).reduce((acc, [variantId, progress]) => {
     const variant = findVariant(variantId);
-    if (!variant || !progress.completed) return acc;
+    if (!variant || !hasRecordedResult(variant, progress)) return acc;
     if (isScanVariant(variant)) {
       acc.done += 1;
       return acc;
     }
-    const correct = countCorrect(variant, progress);
+    const correct = latestAttempt(progress)?.score ?? progress.best ?? 0;
     acc.done += 1;
     acc.correct += correct;
     acc.total += variantLength(variant);
@@ -1088,7 +1200,6 @@ function renderSourceNote() {
 function renderTeacher() {
   nodes.eyebrow.textContent = "ЕГЭ · админ";
   nodes.screenTitle.textContent = "Учитель";
-  nodes.resetAllButton.classList.remove("is-hidden");
   const db = readDb();
   const submissions = cloudStore ? state.cloudSubmissions : loadSubmissions();
   nodes.teacherReport.innerHTML = "";
@@ -1201,10 +1312,7 @@ function goNext() {
     renderExam();
     return;
   }
-  const progress = variantProgress();
-  progress.completed = true;
-  progress.best = Math.max(progress.best, countCorrect(variant, progress));
-  saveProgress();
+  const progress = completeInteractiveAttempt(variant);
   recordSubmission(variant, progress);
   show("result");
 }
@@ -1218,10 +1326,7 @@ function skipCurrentQuestion() {
     renderExam();
     return;
   }
-  const progress = variantProgress();
-  progress.completed = true;
-  progress.best = Math.max(progress.best, countCorrect(variant, progress));
-  saveProgress();
+  const progress = completeInteractiveAttempt(variant);
   recordSubmission(variant, progress);
   show("result");
 }
@@ -1231,11 +1336,39 @@ function restartCurrentVariant() {
     alert("Это ДЗ: повторная попытка закрыта.");
     return;
   }
-  state.progress[currentVariant().id] = { completed: false, best: 0, answers: {}, skipped: {} };
+  const previous = variantProgress();
+  state.progress[currentVariant().id] = {
+    completed: false,
+    best: previous.best || 0,
+    attempts: [...previous.attempts],
+    answers: {},
+    skipped: {}
+  };
   state.questionIndex = 0;
   clearDraft();
   saveProgress();
   show(isScanVariant() ? "scan" : "exam");
+}
+
+function completeInteractiveAttempt(variant) {
+  const progress = variantProgress(variant);
+  const score = countCorrect(variant, progress);
+  const attempt = { score, total: variantLength(variant), at: new Date().toISOString() };
+  progress.completed = true;
+  progress.best = Math.max(progress.best || 0, score);
+  progress.attempts.push(attempt);
+  saveProgress();
+  return progress;
+}
+
+function latestAttempt(progress) {
+  return Array.isArray(progress.attempts) && progress.attempts.length
+    ? progress.attempts[progress.attempts.length - 1]
+    : null;
+}
+
+function hasRecordedResult(variant, progress) {
+  return isScanVariant(variant) ? progress.completed : Boolean(latestAttempt(progress));
 }
 
 function recordSubmission(variant, progress) {
@@ -1363,29 +1496,6 @@ nodes.nextVariantButton.addEventListener("click", () => {
   state.variantIndex = (state.variantIndex + 1) % currentSource().variants.length;
   restartCurrentVariant();
 });
-nodes.resetAllButton.addEventListener("click", () => {
-  if (!isTeacher() && readDb().homework.some((item) => state.progress[item.variantId]?.completed)) {
-    alert("Завершенное ДЗ нельзя сбросить.");
-    return;
-  }
-  state.progress = {};
-  if (state.access?.id) {
-    const db = readDb();
-    db.progress[state.access.id] = {};
-    writeDb(db);
-  } else {
-    localStorage.removeItem(STORAGE_KEY);
-  }
-  if (isTeacher()) {
-    const db = readDb();
-    db.submissions = [];
-    writeDb(db);
-    renderTeacher();
-    return;
-  }
-  show("subjects");
-});
-
 show(state.screen);
 
 (async function initCloudSession() {

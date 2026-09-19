@@ -453,10 +453,40 @@ const { chromium } = require('playwright');
     assert.equal(await page.locator('#reviewList .review-item').count(),16,'Only incorrect tasks must be shown');
     assert.match(await page.locator('#reviewList .review-item').first().innerText(),/Ответ ученика:/);
     assert.match(await page.locator('#reviewList .review-item').first().innerText(),/Правильно:/);
+    assert.doesNotMatch(await page.locator('#reviewList').innerText(),/Эталон/);
+    assert.ok(await page.locator('#reviewList .review-option').count()>0,'Answer options missing from review');
+    assert.ok(await page.locator('#reviewList .task-context').count()>0,'Question context missing from review');
+    assert.ok(await page.locator('#reviewList .task-table').count()>0,'Question table missing from review');
+    assert.ok(await page.locator('#reviewList .task-media img').count()>0,'Question image missing from review');
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'Result review overflow');
     await page.screenshot({path:'review/history/mistake-review-320.png',fullPage:true});
     await page.locator('#mistakesReviewButton').click();
     assert.equal(await page.locator('#reviewList').isVisible(),false,'Mistake review did not close');
-    console.log('272 source keys, alternate answers, shared maps, native tables, 816 viewport renders and mistake review verified.');
+    assert.equal(await page.locator('#resetAllButton').count(),0,'Dangerous global reset button must be removed');
+    await page.evaluate(()=>{
+      const variant=subjects.history_oge.sources[0].variants[14];
+      state.variantIndex=14;
+      state.variantId=variant.id;
+      state.progress[variant.id]={
+        completed:true,
+        best:12,
+        attempts:[{score:12,total:17,at:new Date().toISOString()}],
+        answers:{},
+        skipped:{}
+      };
+      show('variants');
+    });
+    const completedCard=page.locator('.variant-card').nth(14);
+    assert.match(await completedCard.innerText(),/Вариант 15\s*\(12\/17\)/);
+    assert.equal(await completedCard.locator('.variant-retry').innerText(),'Решить ещё раз');
+    assert.equal(await page.locator('#doneValue').innerText(),'1','Completed attempt must count in statistics');
+    await completedCard.locator('.variant-retry').click();
+    assert.equal(await page.locator('#examScreen').isVisible(),true,'Retry must open the variant');
+    const retryState=await page.evaluate(()=>state.progress[subjects.history_oge.sources[0].variants[14].id]);
+    assert.equal(retryState.completed,false,'Retry must start a fresh active attempt');
+    assert.equal(retryState.attempts.length,1,'Retry must preserve attempt history');
+    assert.equal(retryState.best,12,'Retry must preserve best score');
+    assert.equal(await page.locator('#doneValue').innerText(),'1','Retry must not remove completed result from statistics');
+    console.log('272 source keys, alternate answers, shared maps, native tables, 816 viewport renders, mistake review and safe retry verified.');
   } finally { await browser.close(); }
 })().catch(error=>{console.error(error);process.exitCode=1;});
