@@ -12,7 +12,7 @@ const { chromium } = require('playwright');
     const keys = ['431','1324','Уложенная комиссия','23','5','1423','245','двенадцатый','Юрий Долгорукий','3','3','Борис Годунов','34','5','3','1','4'];
     await page.evaluate(keys => {
       const source = subjects.history_oge.sources[0];
-      if (source.variants.length !== 18) throw Error('Expected eighteen verified variants');
+      if (source.variants.length !== 22) throw Error('Expected twenty-two verified variants');
       const variant = source.variants[0];
       if (variant.questions.length !== 17) throw Error('Missing tasks');
       variant.questions.forEach((q, i) => {
@@ -487,6 +487,108 @@ const { chromium } = require('playwright');
         await page.screenshot({path:`review/history/v18-${width}-q${i+1}.png`,fullPage:true});
       }
     }
+    const keys19=['243','3214','Кунсткамера','13','2','3124','245','двенадцатый','Юрий Долгорукий','5','2','Германия','25','4','4','3','1'];
+    await page.evaluate(keys=>{
+      const variant=subjects.history_oge.sources[0].variants[18];
+      if(variant.questions.length!==17)throw Error('Missing variant 19 tasks');
+      variant.questions.forEach((q,i)=>{
+        if(q.sourceTask!==i+1||q.sourceVariant!==19)throw Error('Variant 19 mapping');
+        const key=keys[i];
+        const answer=q.type==='match'?{matching:Object.fromEntries([...key].map((d,j)=>[j,String(Number(d)-1)]))}:q.type==='multi'?{selected:[...key].map(d=>Number(d)-1).reverse()}:q.type==='single'?{selected:Number(key)-1}:{selected:key};
+        if(!isCorrect(q,answer))throw Error(`Variant 19 key ${i+1}`);
+      });
+      if(!isCorrect(variant.questions[5],{selected:'2431'}))throw Error('Variant 19 alternate order');
+      if(!isCorrect(variant.questions[11],{selected:'Германская империя'}))throw Error('Variant 19 full state name');
+      if(variant.questions.slice(7,10).some(q=>q.image!==variant.questions[7].image))throw Error('Variant 19 shared map');
+      state.variantIndex=18;state.variantId=variant.id;
+    },keys19);
+    for(const width of [320,390,1280]){
+      await page.setViewportSize({width,height:900});
+      for(let i=0;i<17;i++){
+        await page.evaluate(i=>{state.questionIndex=i;clearDraft();show('exam');},i);
+        await page.locator('.task-media img').evaluateAll(images=>Promise.all(images.map(img=>img.decode())));
+        assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`Variant 19 overflow ${width}.${i+1}`);
+        if(i===6)assert.deepEqual(await page.locator('.task-table tbody td').allTextContents(),['1–2 руб.','4–5 руб.','8–10 руб.','7,1','12,1','17,7']);
+        await page.screenshot({path:`review/history/v19-${width}-q${i+1}.png`,fullPage:true});
+      }
+    }
+    const keys20=['523','2143','Приказ тайных дел','24','4','2143','321','Багратион','Бородинское','1','1','Киселёв','14','5','2','4','1'];
+    await page.evaluate(keys=>{
+      const variant=subjects.history_oge.sources[0].variants[19];
+      if(variant.questions.length!==17)throw Error('Missing variant 20 tasks');
+      variant.questions.forEach((q,i)=>{
+        if(q.sourceTask!==i+1||q.sourceVariant!==20)throw Error('Variant 20 mapping');
+        const key=keys[i];
+        const answer=q.type==='match'?{matching:Object.fromEntries([...key].map((d,j)=>[j,String(Number(d)-1)]))}:q.type==='multi'?{selected:[...key].map(d=>Number(d)-1).reverse()}:q.type==='single'?{selected:Number(key)-1}:{selected:key};
+        if(!isCorrect(q,answer))throw Error(`Variant 20 key ${i+1}`);
+      });
+      if(!isCorrect(variant.questions[5],{selected:'4321'}))throw Error('Variant 20 alternate order');
+      if(!isCorrect(variant.questions[7],{selected:'Пётр Багратион'}))throw Error('Variant 20 full commander name');
+      if(!isCorrect(variant.questions[8],{selected:'Бородинское сражение'}))throw Error('Variant 20 full battle name');
+      if(!isCorrect(variant.questions[11],{selected:'Павел Дмитриевич Киселёв'}))throw Error('Variant 20 full statesman name');
+      if(variant.questions.slice(7,10).some(q=>q.image!==variant.questions[7].image))throw Error('Variant 20 shared map');
+      state.variantIndex=19;state.variantId=variant.id;
+    },keys20);
+    for(const width of [320,390,1280]){
+      await page.setViewportSize({width,height:900});
+      for(let i=0;i<17;i++){
+        await page.evaluate(i=>{state.questionIndex=i;clearDraft();show('exam');},i);
+        await page.locator('.task-media img').evaluateAll(images=>Promise.all(images.map(img=>img.decode())));
+        assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`Variant 20 overflow ${width}.${i+1}`);
+        if(i===6)assert.deepEqual(await page.locator('.task-table tbody td').allTextContents(),['10 723','18 247','3117','10 612','691','5091','2744','5489']);
+        await page.screenshot({path:`review/history/v20-${width}-q${i+1}.png`,fullPage:true});
+      }
+    }
+    const keys21=['451','4123','стрельцы','24','5','2134','213','семнадцатый','Алексей Михайлович','1','4','Александр Второй','14','5','3','2','4'];
+    await page.evaluate(keys=>{
+      const variant=subjects.history_oge.sources[0].variants[20];
+      if(variant.questions.length!==17)throw Error('Missing variant 21 tasks');
+      variant.questions.forEach((q,i)=>{
+        if(q.sourceTask!==i+1||q.sourceVariant!==21)throw Error('Variant 21 mapping');
+        const key=keys[i];
+        const answer=q.type==='match'?{matching:Object.fromEntries([...key].map((d,j)=>[j,String(Number(d)-1)]))}:q.type==='multi'?{selected:[...key].map(d=>Number(d)-1).reverse()}:q.type==='single'?{selected:Number(key)-1}:{selected:key};
+        if(!isCorrect(q,answer))throw Error(`Variant 21 key ${i+1}`);
+      });
+      if(!isCorrect(variant.questions[5],{selected:'3421'}))throw Error('Variant 21 alternate order');
+      if(!isCorrect(variant.questions[11],{selected:'Александр II'}))throw Error('Variant 21 roman monarch name');
+      if(variant.questions.slice(7,10).some(q=>q.image!==variant.questions[7].image))throw Error('Variant 21 shared map');
+      state.variantIndex=20;state.variantId=variant.id;
+    },keys21);
+    for(const width of [320,390,1280]){
+      await page.setViewportSize({width,height:900});
+      for(let i=0;i<17;i++){
+        await page.evaluate(i=>{state.questionIndex=i;clearDraft();show('exam');},i);
+        await page.locator('.task-media img').evaluateAll(images=>Promise.all(images.map(img=>img.decode())));
+        assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`Variant 21 overflow ${width}.${i+1}`);
+        if(i===6)assert.deepEqual(await page.locator('.task-table tbody td').allTextContents(),['484','196','170','480','122','416']);
+        await page.screenshot({path:`review/history/v21-${width}-q${i+1}.png`,fullPage:true});
+      }
+    }
+    const keys22=['531','2341','тысяцкий','24','4','2341','413','тринадцатый','Новгород','4','3','Аракчеев','24','5','3','1','2'];
+    await page.evaluate(keys=>{
+      const variant=subjects.history_oge.sources[0].variants[21];
+      if(variant.questions.length!==17)throw Error('Missing variant 22 tasks');
+      variant.questions.forEach((q,i)=>{
+        if(q.sourceTask!==i+1||q.sourceVariant!==22)throw Error('Variant 22 mapping');
+        const key=keys[i];
+        const answer=q.type==='match'?{matching:Object.fromEntries([...key].map((d,j)=>[j,String(Number(d)-1)]))}:q.type==='multi'?{selected:[...key].map(d=>Number(d)-1).reverse()}:q.type==='single'?{selected:Number(key)-1}:{selected:key};
+        if(!isCorrect(q,answer))throw Error(`Variant 22 key ${i+1}`);
+      });
+      if(!isCorrect(variant.questions[5],{selected:'4123'}))throw Error('Variant 22 alternate order');
+      if(!isCorrect(variant.questions[11],{selected:'Алексей Андреевич Аракчеев'}))throw Error('Variant 22 full statesman name');
+      if(variant.questions.slice(7,10).some(q=>q.image!==variant.questions[7].image))throw Error('Variant 22 shared map');
+      state.variantIndex=21;state.variantId=variant.id;
+    },keys22);
+    for(const width of [320,390,1280]){
+      await page.setViewportSize({width,height:900});
+      for(let i=0;i<17;i++){
+        await page.evaluate(i=>{state.questionIndex=i;clearDraft();show('exam');},i);
+        await page.locator('.task-media img').evaluateAll(images=>Promise.all(images.map(img=>img.decode())));
+        assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`Variant 22 overflow ${width}.${i+1}`);
+        if(i===6)assert.deepEqual(await page.locator('.task-table tbody td').allTextContents(),['246,5','53,2','4,8','219,4','2284,2','2078,9']);
+        await page.screenshot({path:`review/history/v22-${width}-q${i+1}.png`,fullPage:true});
+      }
+    }
     await page.setViewportSize({width:320,height:900});
     await page.evaluate(()=>{
       const variant=subjects.history_oge.sources[0].variants[14];
@@ -538,6 +640,6 @@ const { chromium } = require('playwright');
     assert.equal(retryState.attempts.length,1,'Retry must preserve attempt history');
     assert.equal(retryState.best,12,'Retry must preserve best score');
     assert.equal(await page.locator('#doneValue').innerText(),'1','Retry must not remove completed result from statistics');
-    console.log('306 source keys, alternate answers, shared maps, native tables, 918 viewport renders, mistake review and safe retry verified.');
+    console.log('374 source keys, alternate answers, shared maps, native tables, 1122 viewport renders, mistake review and safe retry verified.');
   } finally { await browser.close(); }
 })().catch(error=>{console.error(error);process.exitCode=1;});

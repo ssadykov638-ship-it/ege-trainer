@@ -623,7 +623,7 @@
         17
       ],
       "answerPage": 245,
-      "adaptationStatus": "OCR only; not adapted"
+      "adaptationStatus": "verified interactive adaptation"
     },
     {
       "variant": 20,
@@ -633,7 +633,8 @@
         153,
         154,
         155,
-        156
+        156,
+        157
       ],
       "sourceTasks": [
         1,
@@ -655,7 +656,7 @@
         17
       ],
       "answerPage": 245,
-      "adaptationStatus": "OCR only; not adapted"
+      "adaptationStatus": "verified interactive adaptation"
     },
     {
       "variant": 21,
@@ -688,7 +689,7 @@
         17
       ],
       "answerPage": 245,
-      "adaptationStatus": "OCR only; not adapted"
+      "adaptationStatus": "verified interactive adaptation"
     },
     {
       "variant": 22,
@@ -698,7 +699,8 @@
         169,
         170,
         171,
-        172
+        172,
+        173
       ],
       "sourceTasks": [
         1,
@@ -720,7 +722,7 @@
         17
       ],
       "answerPage": 245,
-      "adaptationStatus": "OCR only; not adapted"
+      "adaptationStatus": "verified interactive adaptation"
     },
     {
       "variant": 23,

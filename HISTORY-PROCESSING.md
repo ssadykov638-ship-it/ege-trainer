@@ -2,7 +2,7 @@
 
 ## Published scope
 
-Variants 1-18 are adapted and verified. Variants 19-30 are NOT adapted yet.
+Variants 1-22 are adapted and verified. Variants 23-30 are NOT adapted yet.
 Variant 2: all 17 source tasks and keys checked against pages 11-16 and 240;
 shared map retains its legend, table is native HTML, and 51 viewport renders pass.
 Variant 3: all 17 source tasks and keys checked against pages 19-24 and 241;
@@ -37,6 +37,14 @@ Variant 17: all 17 source tasks and keys checked against pages 128-133 and 244;
 shared map retains both legends, table is native HTML, and 51 viewport renders pass.
 Variant 18: all 17 source tasks and keys checked against pages 136-141 and 244;
 shared map retains its legend, table is native HTML, and 51 viewport renders pass.
+Variant 19: all 17 source tasks and keys checked against pages 144-149 and 245;
+shared map retains its legend, table is native HTML, and 51 viewport renders pass.
+Variant 20: all 17 source tasks and keys checked against pages 152-157 and 245;
+shared map retains its legend, table is native HTML, and 51 viewport renders pass.
+Variant 21: all 17 source tasks and keys checked against pages 160-165 and 245;
+shared map is legible, table is native HTML, and 51 viewport renders pass.
+Variant 22: all 17 source tasks and keys checked against pages 168-173 and 245;
+shared map retains its legend, table is native HTML, and 51 viewport renders pass.
 The user approved the sample, requested the remaining variants and authorized
 GitHub publication. Publication of the verified sample is incremental work,
 not fulfillment of the remaining-variants request.
@@ -62,7 +70,7 @@ records variant boundaries and key-page references. OCR is not release-ready.
 
 ## Remaining work
 
-Adapt variants 19-30 to the sample format, verify source text and figures, transcribe
+Adapt variants 23-30 to the sample format, verify source text and figures, transcribe
 and independently check their keys, then run grading and viewport tests before
 publishing each verified batch. Do not append raw OCR or placeholder tasks to the
 student-facing data. Preserve the verified variant 1 and existing EGE/OGE data.
