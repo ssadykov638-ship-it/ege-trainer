@@ -2,7 +2,7 @@
 
 ## Published scope
 
-Variants 1-24 are adapted and verified. Variants 25-30 are NOT adapted yet.
+Variants 1-25 are adapted and verified. Variants 26-30 are NOT adapted yet.
 Variant 2: all 17 source tasks and keys checked against pages 11-16 and 240;
 shared map retains its legend, table is native HTML, and 51 viewport renders pass.
 Variant 3: all 17 source tasks and keys checked against pages 19-24 and 241;
@@ -49,6 +49,8 @@ Variant 23: all 17 source tasks and keys checked against pages 176-181 and 246;
 shared map retains its legend, table is native HTML, and 51 viewport renders pass.
 Variant 24: all 17 source tasks and keys checked against pages 184-189 and 246;
 shared map retains its legend, table is native HTML, and 51 viewport renders pass.
+Variant 25: all 17 source tasks and keys checked against pages 192-197 and 246;
+shared map retains its legend, table is native HTML, and 51 viewport renders pass.
 The user approved the sample, requested the remaining variants and authorized
 GitHub publication. Publication of the verified sample is incremental work,
 not fulfillment of the remaining-variants request.
@@ -74,7 +76,7 @@ records variant boundaries and key-page references. OCR is not release-ready.
 
 ## Remaining work
 
-Adapt variants 25-30 to the sample format, verify source text and figures, transcribe
+Adapt variants 26-30 to the sample format, verify source text and figures, transcribe
 and independently check their keys, then run grading and viewport tests before
 publishing each verified batch. Do not append raw OCR or placeholder tasks to the
 student-facing data. Preserve the verified variant 1 and existing EGE/OGE data.
