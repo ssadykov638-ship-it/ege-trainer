@@ -1,5 +1,5 @@
 const STORAGE_KEY = "ege-open-access-progress-v1";
-const APP_VERSION = "20260919-35";
+const APP_VERSION = "20260921-18";
 const ACCESS_KEY = "ege-access-session-v1";
 const AUTH_DB_KEY = "ege-auth-db-v1";
 const DEVICE_KEY = "ege-device-id-v1";
