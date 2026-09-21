@@ -12,7 +12,7 @@ const { chromium } = require('playwright');
     const keys = ['431','1324','Уложенная комиссия','23','5','1423','245','двенадцатый','Юрий Долгорукий','3','3','Борис Годунов','34','5','3','1','4'];
     await page.evaluate(keys => {
       const source = subjects.history_oge.sources[0];
-      if (source.variants.length !== 25) throw Error('Expected twenty-five verified variants');
+      if (source.variants.length !== 26) throw Error('Expected twenty-six verified variants');
       const variant = source.variants[0];
       if (variant.questions.length !== 17) throw Error('Missing tasks');
       variant.questions.forEach((q, i) => {
@@ -668,6 +668,32 @@ const { chromium } = require('playwright');
         await page.screenshot({path:`review/history/v25-${width}-q${i+1}.png`,fullPage:true});
       }
     }
+    const keys26=['352','2143','бояре','34','4','1423','413','Николай Первый','Севастополь','2','2','Англия','15','3','1','3','4'];
+    await page.evaluate(keys=>{
+      const variant=subjects.history_oge.sources[0].variants[25];
+      if(variant.questions.length!==17)throw Error('Missing variant 26 tasks');
+      variant.questions.forEach((q,i)=>{
+        if(q.sourceTask!==i+1||q.sourceVariant!==26)throw Error('Variant 26 mapping');
+        const key=keys[i];
+        const answer=q.type==='match'?{matching:Object.fromEntries([...key].map((d,j)=>[j,String(Number(d)-1)]))}:q.type==='multi'?{selected:[...key].map(d=>Number(d)-1).reverse()}:q.type==='single'?{selected:Number(key)-1}:{selected:key};
+        if(!isCorrect(q,answer))throw Error(`Variant 26 key ${i+1}`);
+      });
+      if(!isCorrect(variant.questions[5],{selected:'2314'}))throw Error('Variant 26 alternate order');
+      if(!isCorrect(variant.questions[7],{selected:'Николай I'}))throw Error('Variant 26 roman monarch name');
+      if(!isCorrect(variant.questions[11],{selected:'Великобритания'}))throw Error('Variant 26 alternate state name');
+      if(variant.questions.slice(7,10).some(q=>q.image!==variant.questions[7].image))throw Error('Variant 26 shared map');
+      state.variantIndex=25;state.variantId=variant.id;
+    },keys26);
+    for(const width of [320,390,1280]){
+      await page.setViewportSize({width,height:900});
+      for(let i=0;i<17;i++){
+        await page.evaluate(i=>{state.questionIndex=i;clearDraft();show('exam');},i);
+        await page.locator('.task-media img').evaluateAll(images=>Promise.all(images.map(img=>img.decode())));
+        assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`Variant 26 overflow ${width}.${i+1}`);
+        if(i===6)assert.deepEqual(await page.locator('.task-table tbody td').allTextContents(),['4111','2750','6861','11 747','4134','15 881','48 080','36 433','84 513','63 938','43 317','107 255']);
+        await page.screenshot({path:`review/history/v26-${width}-q${i+1}.png`,fullPage:true});
+      }
+    }
     await page.setViewportSize({width:320,height:900});
     await page.evaluate(()=>{
       const variant=subjects.history_oge.sources[0].variants[14];
@@ -719,6 +745,6 @@ const { chromium } = require('playwright');
     assert.equal(retryState.attempts.length,1,'Retry must preserve attempt history');
     assert.equal(retryState.best,12,'Retry must preserve best score');
     assert.equal(await page.locator('#doneValue').innerText(),'1','Retry must not remove completed result from statistics');
-    console.log('425 source keys, alternate answers, shared maps, native tables, 1275 viewport renders, mistake review and safe retry verified.');
+    console.log('442 source keys, alternate answers, shared maps, native tables, 1326 viewport renders, mistake review and safe retry verified.');
   } finally { await browser.close(); }
 })().catch(error=>{console.error(error);process.exitCode=1;});

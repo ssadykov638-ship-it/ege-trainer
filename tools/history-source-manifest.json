@@ -831,7 +831,8 @@
         201,
         202,
         203,
-        204
+        204,
+        205
       ],
       "sourceTasks": [
         1,
@@ -853,7 +854,7 @@
         17
       ],
       "answerPage": 246,
-      "adaptationStatus": "OCR only; not adapted"
+      "adaptationStatus": "verified interactive adaptation"
     },
     {
       "variant": 27,
