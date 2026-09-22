@@ -1,5 +1,5 @@
 const STORAGE_KEY = "ege-open-access-progress-v1";
-const APP_VERSION = "20260922-31";
+const APP_VERSION = "20260922-32";
 const ACCESS_KEY = "ege-access-session-v1";
 const AUTH_DB_KEY = "ege-auth-db-v1";
 const DEVICE_KEY = "ege-device-id-v1";
@@ -72,6 +72,7 @@ const state = {
   progress: loadProgress(initialAccess),
   cloudHomework: [],
   cloudStudents: [],
+  cloudStudentMemberships: [],
   cloudSubmissions: [],
   cloudError: "",
   variantNotice: "",
@@ -299,16 +300,18 @@ async function refreshCloudData() {
   try {
     const [progress, homework] = await Promise.all([
       cloudStore.loadProgress(state.access.id),
-      cloudStore.loadHomework()
+      cloudStore.loadHomework(state.access)
     ]);
     state.progress = progress || {};
     state.cloudHomework = homework || [];
     if (isTeacher()) {
-      const [students, submissions] = await Promise.all([
+      const [students, memberships, submissions] = await Promise.all([
         cloudStore.loadStudents(),
+        cloudStore.loadStudentMemberships(),
         cloudStore.loadSubmissions()
       ]);
       state.cloudStudents = students || [];
+      state.cloudStudentMemberships = memberships || [];
       state.cloudSubmissions = submissions || [];
     }
     state.cloudError = "";
@@ -1235,7 +1238,6 @@ function renderTeacher() {
   nodes.eyebrow.textContent = "ЕГЭ · админ";
   nodes.screenTitle.textContent = "Учитель";
   const db = readDb();
-  const submissions = cloudStore ? state.cloudSubmissions : loadSubmissions();
   nodes.teacherReport.innerHTML = "";
   if (state.cloudError) {
     const warning = document.createElement("article");
@@ -1243,13 +1245,64 @@ function renderTeacher() {
     warning.innerHTML = `<strong>Не удалось загрузить данные</strong><span>${state.cloudError}</span>`;
     nodes.teacherReport.appendChild(warning);
   }
-  const visibleStudents = cloudStore
+  const allStudents = cloudStore
     ? state.cloudStudents
     : db.students.map((student) => db.users.find((user) => user.id === student.userId)).filter(Boolean);
+  const enrolledIds = new Set(cloudStore
+    ? state.cloudStudentMemberships.map((membership) => membership.student_id)
+    : allStudents.map((student) => student.id));
+  const visibleStudents = allStudents.filter((student) => enrolledIds.has(student.id));
+  const submissions = (cloudStore ? state.cloudSubmissions : loadSubmissions())
+    .filter((submission) => enrolledIds.has(submission.userId || submission.user_id));
   const roster = document.createElement("article");
   roster.className = "review-item";
-  roster.innerHTML = `<strong>Ученики: ${visibleStudents.length}</strong><span>${visibleStudents.map((student) => `${student.name} (${student.login})`).join(", ") || "Пока нет зарегистрированных учеников"}</span>`;
+  roster.innerHTML = `<strong>Ученики с ДЗ: ${visibleStudents.length}</strong><span>${visibleStudents.map((student) => `${student.name} (${student.login})`).join(", ") || "Пока никто не подключён к учебной группе"}</span>`;
   nodes.teacherReport.appendChild(roster);
+  if (cloudStore) {
+    const accounts = document.createElement("article");
+    accounts.className = "review-item teacher-accounts";
+    const title = document.createElement("strong");
+    title.textContent = `Аккаунты: ${allStudents.length}`;
+    accounts.appendChild(title);
+    const note = document.createElement("span");
+    note.textContent = "Включённые получают ДЗ и попадают в журнал. Остальные могут тренироваться самостоятельно.";
+    accounts.appendChild(note);
+    allStudents.forEach((student) => {
+      const row = document.createElement("label");
+      row.className = "teacher-account-row";
+      const identity = document.createElement("span");
+      const name = document.createElement("b");
+      name.textContent = student.name;
+      const login = document.createElement("small");
+      login.textContent = student.login;
+      identity.append(name, login);
+      const control = document.createElement("span");
+      control.className = "teacher-account-control";
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = enrolledIds.has(student.id);
+      checkbox.setAttribute("aria-label", `Доступ к ДЗ: ${student.name}`);
+      const status = document.createElement("b");
+      status.textContent = checkbox.checked ? "Получает ДЗ" : "Только тренировка";
+      checkbox.addEventListener("change", async () => {
+        checkbox.disabled = true;
+        status.textContent = "Сохраняю...";
+        try {
+          await cloudStore.setStudentHomeworkAccess(student.id, checkbox.checked);
+          await refreshCloudData();
+          renderTeacher();
+        } catch (error) {
+          checkbox.checked = !checkbox.checked;
+          checkbox.disabled = false;
+          status.textContent = error.message || "Не удалось изменить доступ";
+        }
+      });
+      control.append(checkbox, status);
+      row.append(identity, control);
+      accounts.appendChild(row);
+    });
+    nodes.teacherReport.appendChild(accounts);
+  }
   const homework = document.createElement("article");
   homework.className = "review-item";
   const assignedHomework = homeworkItems();
@@ -1264,10 +1317,56 @@ function renderTeacher() {
   }
   submissions.slice().reverse().forEach((submission) => {
     const item = document.createElement("article");
-    item.className = "review-item";
+    item.className = "review-item teacher-submission";
     const date = new Date(submission.at || submission.submitted_at).toLocaleString("ru-RU", { dateStyle: "short", timeStyle: "short" });
     const student = visibleStudents.find((item) => item.id === (submission.userId || submission.user_id));
     item.innerHTML = `<strong>${submission.studentName || student?.name || "Ученик"} · ${submission.variantTitle || submission.variant_title}</strong><span>${submission.subjectTitle || submission.subject_title} · ${submission.sourceTitle || submission.source_title}${submission.homeworkId || submission.homework_id ? " · ДЗ" : ""}</span><span>${submission.score}/${submission.total} · ${date}</span><p>Email: ${submission.login || student?.login || "нет данных"}</p>`;
+    if (cloudStore) {
+      const detailsButton = document.createElement("button");
+      detailsButton.type = "button";
+      detailsButton.className = "ghost-button teacher-details-button";
+      detailsButton.textContent = "Проверить ответы";
+      detailsButton.addEventListener("click", async () => {
+        const current = item.querySelector(".teacher-answer-list");
+        if (current) {
+          current.remove();
+          detailsButton.textContent = "Проверить ответы";
+          return;
+        }
+        detailsButton.disabled = true;
+        detailsButton.textContent = "Загрузка...";
+        try {
+          const userId = submission.userId || submission.user_id;
+          const variantId = submission.variantId || submission.variant_id;
+          const [progress] = await Promise.all([cloudStore.loadStudentVariantProgress(userId, variantId)]);
+          const variant = findVariant(variantId);
+          const list = document.createElement("div");
+          list.className = "teacher-answer-list";
+          if (!variant || !progress?.answers) {
+            list.textContent = "Подробные ответы для этой работы не найдены.";
+          } else {
+            variant.questions.forEach((question, index) => {
+              const answer = progress.answers[index];
+              const row = document.createElement("div");
+              row.className = `teacher-answer-row ${isCorrect(question, answer) ? "is-correct" : "is-wrong"}`;
+              const heading = document.createElement("b");
+              heading.textContent = `${index + 1}. ${question.text}`;
+              const values = document.createElement("span");
+              values.textContent = `Ответ: ${formatAnswer(question, answer)} · Правильно: ${formatCorrect(question)}`;
+              row.append(heading, values);
+              list.appendChild(row);
+            });
+          }
+          item.appendChild(list);
+          detailsButton.textContent = "Скрыть ответы";
+        } catch (error) {
+          detailsButton.textContent = error.message || "Не удалось загрузить ответы";
+        } finally {
+          detailsButton.disabled = false;
+        }
+      });
+      item.appendChild(detailsButton);
+    }
     nodes.teacherReport.appendChild(item);
   });
 }

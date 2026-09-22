@@ -173,7 +173,7 @@ grant usage on schema public to anon, authenticated;
 grant execute on function public.is_teacher() to authenticated;
 grant select, insert, update on public.profiles to authenticated;
 grant select on public.groups to authenticated;
-grant select, insert, update on public.group_students to authenticated;
+grant select, insert, update, delete on public.group_students to authenticated;
 grant select, insert, update, delete on public.homework to authenticated;
 grant select, insert, update on public.progress to authenticated;
 grant select, insert, update on public.submissions to authenticated;

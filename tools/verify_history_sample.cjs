@@ -7,7 +7,7 @@ const { chromium } = require('playwright');
   const browser = await chromium.launch({ headless: true, channel: 'chrome' });
   try {
     const page = await browser.newPage();
-    await page.route('**/*supabase*', r => r.abort());
+    await page.route('https://*.supabase.co/**', r => r.abort());
     await page.goto('http://localhost:4173/');
     const keys = ['431','1324','Уложенная комиссия','23','5','1423','245','двенадцатый','Юрий Долгорукий','3','3','Борис Годунов','34','5','3','1','4'];
     await page.evaluate(keys => {
@@ -772,6 +772,29 @@ const { chromium } = require('playwright');
     assert.equal(retryState.attempts.length,1,'Retry must preserve attempt history');
     assert.equal(retryState.best,12,'Retry must preserve best score');
     assert.equal(await page.locator('#doneValue').innerText(),'1','Retry must not remove completed result from statistics');
-    console.log('510 source keys, alternate answers, shared maps, native tables, 1530 viewport renders, mistake review and safe retry verified.');
+    await page.evaluate(()=>{
+      const variant=subjects.history_oge.sources[0].variants[0];
+      state.access={id:'teacher-id',name:'Учитель',login:'teacher@example.test',role:'teacher'};
+      state.cloudStudents=[
+        {id:'student-main',name:'Ученик',login:'student@example.test'},
+        {id:'practice-only',name:'Тренировка',login:'practice@example.test'}
+      ];
+      state.cloudStudentMemberships=[{student_id:'student-main'}];
+      state.cloudSubmissions=[
+        {user_id:'student-main',variant_id:variant.id,variant_title:variant.title,subject_title:'История',source_title:'Источник',score:1,total:17,submitted_at:new Date().toISOString()},
+        {user_id:'practice-only',variant_id:variant.id,variant_title:variant.title,subject_title:'История',source_title:'Источник',score:2,total:17,submitted_at:new Date().toISOString()}
+      ];
+      cloudStore.loadStudentVariantProgress=async()=>({answers:{0:{matching:{0:'3',1:'2',2:'0'}}}});
+      show('teacher');
+    });
+    assert.equal(await page.locator('.teacher-account-row').count(),2,'Teacher account management missing');
+    assert.equal(await page.locator('.teacher-account-row input:checked').count(),1,'Homework enrollment state missing');
+    assert.equal(await page.locator('.teacher-submission').count(),1,'Practice-only submissions must be hidden');
+    await page.locator('.teacher-details-button').click();
+    assert.equal(await page.locator('.teacher-answer-row').count(),17,'Teacher answer review missing');
+    assert.match(await page.locator('.teacher-answer-row').first().innerText(),/Ответ:/);
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'Teacher dashboard overflow');
+    await page.screenshot({path:'review/history/teacher-controls-320.png',fullPage:true});
+    console.log('510 source keys, alternate answers, shared maps, native tables, 1530 viewport renders, teacher controls, answer review, mistake review and safe retry verified.');
   } finally { await browser.close(); }
 })().catch(error=>{console.error(error);process.exitCode=1;});

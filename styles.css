@@ -961,3 +961,75 @@ h2 {
     border-radius: 0;
   }
 }
+.teacher-accounts {
+  gap: 10px;
+}
+
+.teacher-account-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+
+.teacher-account-row > span:first-child {
+  display: grid;
+  min-width: 0;
+}
+
+.teacher-account-row small {
+  overflow-wrap: anywhere;
+  color: var(--muted);
+}
+
+.teacher-account-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.teacher-account-control input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--teal);
+}
+
+.teacher-details-button {
+  align-self: flex-start;
+  flex: 0 0 auto;
+  width: auto;
+  height: 38px;
+  padding: 0 14px;
+}
+
+.teacher-answer-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.teacher-answer-row {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border-left: 3px solid var(--bad);
+  background: var(--soft);
+}
+
+.teacher-answer-row.is-correct {
+  border-left-color: var(--good);
+}
+
+.teacher-answer-row b {
+  font-size: 0.9rem;
+}
+
+@media (max-width: 520px) {
+  .teacher-account-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

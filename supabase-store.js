@@ -187,8 +187,16 @@
     });
   }
 
-  async function loadHomework() {
+  async function loadHomework(access) {
     const session = readSession();
+    if (access?.role !== "teacher") {
+      const memberships = await request(`/rest/v1/group_students?select=group_id&student_id=eq.${encodeURIComponent(access?.id || "")}`, {
+        method: "GET",
+        token: session?.access_token,
+        prefer: ""
+      });
+      if (!memberships?.length) return [];
+    }
     return request("/rest/v1/homework?select=*&order=created_at.desc", {
       method: "GET",
       token: session?.access_token,
@@ -237,6 +245,43 @@
     });
   }
 
+  async function loadStudentMemberships() {
+    const session = readSession();
+    return request(`/rest/v1/group_students?select=student_id&group_id=eq.${DEFAULT_GROUP_ID}`, {
+      method: "GET",
+      token: session?.access_token,
+      prefer: ""
+    });
+  }
+
+  async function setStudentHomeworkAccess(studentId, enabled) {
+    const session = readSession();
+    if (enabled) {
+      await request("/rest/v1/group_students?on_conflict=group_id,student_id", {
+        method: "POST",
+        token: session?.access_token,
+        headers: { Prefer: "resolution=ignore-duplicates,return=minimal" },
+        body: JSON.stringify({ group_id: DEFAULT_GROUP_ID, student_id: studentId })
+      });
+      return;
+    }
+    await request(`/rest/v1/group_students?group_id=eq.${DEFAULT_GROUP_ID}&student_id=eq.${encodeURIComponent(studentId)}`, {
+      method: "DELETE",
+      token: session?.access_token,
+      headers: { Prefer: "return=minimal" }
+    });
+  }
+
+  async function loadStudentVariantProgress(studentId, variantId) {
+    const session = readSession();
+    const rows = await request(`/rest/v1/progress?select=data&user_id=eq.${encodeURIComponent(studentId)}&variant_id=eq.${encodeURIComponent(variantId)}`, {
+      method: "GET",
+      token: session?.access_token,
+      prefer: ""
+    });
+    return rows?.[0]?.data || null;
+  }
+
   async function loadSubmissions() {
     const session = readSession();
     return request("/rest/v1/submissions?select=*&order=submitted_at.desc", {
@@ -278,6 +323,9 @@
     assignHomework,
     removeHomework,
     loadStudents,
+    loadStudentMemberships,
+    setStudentHomeworkAccess,
+    loadStudentVariantProgress,
     loadSubmissions,
     saveSubmission
   };
