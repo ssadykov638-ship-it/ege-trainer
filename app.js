@@ -1,5 +1,5 @@
 const STORAGE_KEY = "ege-open-access-progress-v1";
-const APP_VERSION = "20260922-33";
+const APP_VERSION = "20260922-34";
 const ACCESS_KEY = "ege-access-session-v1";
 const AUTH_DB_KEY = "ege-auth-db-v1";
 const DEVICE_KEY = "ege-device-id-v1";
@@ -75,6 +75,7 @@ const state = {
   cloudStudentMemberships: [],
   cloudSubmissions: [],
   cloudError: "",
+  teacherReview: null,
   variantNotice: "",
   authMode: "login",
   access: initialAccess
@@ -92,6 +93,7 @@ const nodes = {
     variants: document.querySelector("#variantScreen"),
     exam: document.querySelector("#examScreen"),
     result: document.querySelector("#resultScreen"),
+    teacherReview: document.querySelector("#teacherReviewScreen"),
     scan: document.querySelector("#scanScreen"),
     image: document.querySelector("#imageScreen"),
     teacher: document.querySelector("#teacherScreen")
@@ -135,7 +137,11 @@ const nodes = {
   registerButton: document.querySelector("#registerButton"),
   accessSubmitButton: document.querySelector("#accessSubmitButton"),
   accessError: document.querySelector("#accessError"),
-  teacherReport: document.querySelector("#teacherReport")
+  teacherReport: document.querySelector("#teacherReport"),
+  teacherReviewMeta: document.querySelector("#teacherReviewMeta"),
+  teacherReviewTitle: document.querySelector("#teacherReviewTitle"),
+  teacherReviewScore: document.querySelector("#teacherReviewScore"),
+  teacherReviewList: document.querySelector("#teacherReviewList")
 };
 
 function source(id, title, year, description, questions) {
@@ -663,7 +669,7 @@ function show(screen) {
   state.screen = screen;
   Object.entries(nodes.screens).forEach(([name, node]) => node.classList.toggle("is-hidden", name !== screen));
   nodes.backButton.classList.toggle("is-hidden", screen === "access" || (screen === "subjects" && !state.examType));
-  nodes.hero.classList.toggle("is-hidden", screen === "access" || screen === "exam" || screen === "result" || screen === "scan" || screen === "image" || screen === "teacher");
+  nodes.hero.classList.toggle("is-hidden", screen === "access" || screen === "exam" || screen === "result" || screen === "scan" || screen === "image" || screen === "teacher" || screen === "teacherReview");
   render();
 }
 
@@ -678,6 +684,7 @@ function render() {
   if (state.screen === "result") renderResult();
   if (state.screen === "scan") renderScan();
   if (state.screen === "teacher") renderTeacher();
+  if (state.screen === "teacherReview") renderTeacherReview();
 }
 
 function renderAccess() {
@@ -1338,38 +1345,18 @@ function renderTeacher() {
       detailsButton.className = "ghost-button teacher-details-button";
       detailsButton.textContent = "Проверить ответы";
       detailsButton.addEventListener("click", async () => {
-        const current = item.querySelector(".teacher-answer-list");
-        if (current) {
-          current.remove();
-          detailsButton.textContent = "Проверить ответы";
-          return;
-        }
         detailsButton.disabled = true;
         detailsButton.textContent = "Загрузка...";
         try {
           const userId = submission.userId || submission.user_id;
           const variantId = submission.variantId || submission.variant_id;
-          const [progress] = await Promise.all([cloudStore.loadStudentVariantProgress(userId, variantId)]);
+          const progress = await cloudStore.loadStudentVariantProgress(userId, variantId);
           const variant = findVariant(variantId);
-          const list = document.createElement("div");
-          list.className = "teacher-answer-list";
           if (!variant || !progress?.answers) {
-            list.textContent = "Подробные ответы для этой работы не найдены.";
-          } else {
-            variant.questions.forEach((question, index) => {
-              const answer = progress.answers[index];
-              const row = document.createElement("div");
-              row.className = `teacher-answer-row ${isCorrect(question, answer) ? "is-correct" : "is-wrong"}`;
-              const heading = document.createElement("b");
-              heading.textContent = `${index + 1}. ${question.text}`;
-              const values = document.createElement("span");
-              values.textContent = `Ответ: ${formatAnswer(question, answer)} · Правильно: ${formatCorrect(question)}`;
-              row.append(heading, values);
-              list.appendChild(row);
-            });
+            throw new Error("Подробные ответы для этой работы не найдены.");
           }
-          item.appendChild(list);
-          detailsButton.textContent = "Скрыть ответы";
+          state.teacherReview = { submission, student, progress, variant };
+          show("teacherReview");
         } catch (error) {
           detailsButton.textContent = error.message || "Не удалось загрузить ответы";
         } finally {
@@ -1379,6 +1366,43 @@ function renderTeacher() {
       footer.appendChild(detailsButton);
     }
     nodes.teacherReport.appendChild(item);
+  });
+}
+
+function renderTeacherReview() {
+  const review = state.teacherReview;
+  if (!review) {
+    show("teacher");
+    return;
+  }
+  const { submission, student, progress, variant } = review;
+  const answers = progress.answers || {};
+  const correct = variant.questions.reduce((sum, question, index) => sum + (isCorrect(question, answers[index]) ? 1 : 0), 0);
+  const mistakes = variant.questions.length - correct;
+  nodes.eyebrow.textContent = "Проверка работы";
+  nodes.screenTitle.textContent = student?.name || submission.studentName || "Ученик";
+  nodes.teacherReviewMeta.textContent = `${submission.subjectTitle || submission.subject_title} · ${submission.sourceTitle || submission.source_title}`;
+  nodes.teacherReviewTitle.textContent = variant.title;
+  nodes.teacherReviewScore.textContent = `${correct}/${variant.questions.length} · ошибок: ${mistakes}`;
+  nodes.teacherReviewList.innerHTML = "";
+  variant.questions.forEach((question, index) => {
+    const answer = answers[index];
+    const correctAnswer = isCorrect(question, answer);
+    const item = document.createElement("article");
+    item.className = `review-item teacher-review-question ${correctAnswer ? "is-correct" : "is-wrong"}`;
+    const title = document.createElement("strong");
+    title.textContent = `${index + 1}. ${question.text}`;
+    item.appendChild(title);
+    if (!correctAnswer) appendReviewQuestionDetails(item, question);
+    const values = document.createElement("div");
+    values.className = "teacher-review-values";
+    const userAnswer = document.createElement("span");
+    userAnswer.textContent = `Ответ ученика: ${formatAnswer(question, answer)}`;
+    const expected = document.createElement("span");
+    expected.textContent = `Правильно: ${formatCorrect(question)}`;
+    values.append(userAnswer, expected);
+    item.appendChild(values);
+    nodes.teacherReviewList.appendChild(item);
   });
 }
 
@@ -1601,6 +1625,7 @@ function goBack() {
   else if (state.screen === "scan") show("variants");
   else if (state.screen === "result") show("variants");
   else if (state.screen === "image") show("exam");
+  else if (state.screen === "teacherReview") show("teacher");
   else if (state.screen === "teacher") show("subjects");
 }
 

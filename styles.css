@@ -1086,6 +1086,66 @@ h2 {
   font-size: 0.9rem;
 }
 
+.teacher-review-summary {
+  padding: 12px 14px;
+}
+
+.teacher-review-summary h2 {
+  margin: 2px 0 4px;
+  font-size: 20px;
+}
+
+.teacher-review-summary > p:last-child {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.teacher-work-review {
+  max-height: 650px;
+}
+
+.teacher-review-question {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--good);
+}
+
+.teacher-review-question.is-wrong {
+  border-left-color: var(--bad);
+  background: #fff9f7;
+}
+
+.teacher-review-values {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.teacher-review-values span {
+  margin: 0;
+  padding: 7px 8px;
+  border-radius: 6px;
+  background: var(--soft);
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.teacher-review-question.is-wrong .teacher-review-values span:first-child {
+  color: var(--bad);
+}
+
+.teacher-review-values span:last-child {
+  color: var(--good);
+}
+
+@media (max-width: 360px) {
+  .teacher-review-values {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 520px) {
   .teacher-account-row {
     grid-template-columns: minmax(0, 1fr) auto;
