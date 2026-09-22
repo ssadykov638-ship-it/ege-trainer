@@ -1,5 +1,5 @@
 const STORAGE_KEY = "ege-open-access-progress-v1";
-const APP_VERSION = "20260922-30";
+const APP_VERSION = "20260922-31";
 const ACCESS_KEY = "ege-access-session-v1";
 const AUTH_DB_KEY = "ege-auth-db-v1";
 const DEVICE_KEY = "ege-device-id-v1";
@@ -73,6 +73,7 @@ const state = {
   cloudHomework: [],
   cloudStudents: [],
   cloudSubmissions: [],
+  cloudError: "",
   variantNotice: "",
   authMode: "login",
   access: initialAccess
@@ -310,7 +311,9 @@ async function refreshCloudData() {
       state.cloudStudents = students || [];
       state.cloudSubmissions = submissions || [];
     }
+    state.cloudError = "";
   } catch (error) {
+    state.cloudError = error.message || "Не удалось загрузить данные из Supabase.";
     console.warn("Cloud sync failed", error);
   }
 }
@@ -1234,6 +1237,12 @@ function renderTeacher() {
   const db = readDb();
   const submissions = cloudStore ? state.cloudSubmissions : loadSubmissions();
   nodes.teacherReport.innerHTML = "";
+  if (state.cloudError) {
+    const warning = document.createElement("article");
+    warning.className = "review-item";
+    warning.innerHTML = `<strong>Не удалось загрузить данные</strong><span>${state.cloudError}</span>`;
+    nodes.teacherReport.appendChild(warning);
+  }
   const visibleStudents = cloudStore
     ? state.cloudStudents
     : db.students.map((student) => db.users.find((user) => user.id === student.userId)).filter(Boolean);

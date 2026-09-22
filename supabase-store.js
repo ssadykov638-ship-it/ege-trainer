@@ -33,9 +33,27 @@
     };
   }
 
+  async function refreshSession() {
+    const session = readSession();
+    if (!session?.refresh_token) throw new Error("Сессия истекла. Войдите снова.");
+    const response = await fetch(`${baseUrl}/auth/v1/token?grant_type=refresh_token`, {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({ refresh_token: session.refresh_token })
+    });
+    const text = await response.text();
+    const body = text ? JSON.parse(text) : null;
+    if (!response.ok || !body?.access_token) {
+      throw new Error(body?.error_description || body?.message || "Не удалось обновить сессию.");
+    }
+    writeSession(body);
+    return body;
+  }
+
   async function request(path, options = {}) {
+    const { retryAuth = true, ...fetchOptions } = options;
     const response = await fetch(`${baseUrl}${path}`, {
-      ...options,
+      ...fetchOptions,
       headers: {
         ...authHeaders(options.token),
         Prefer: options.prefer || "return=representation",
@@ -44,6 +62,10 @@
     });
     const text = await response.text();
     const body = text ? JSON.parse(text) : null;
+    if (response.status === 401 && retryAuth && options.token && readSession()?.refresh_token) {
+      const session = await refreshSession();
+      return request(path, { ...options, token: session.access_token, retryAuth: false });
+    }
     if (!response.ok) {
       throw new Error(body?.msg || body?.message || body?.error_description || body?.error || `HTTP ${response.status}`);
     }
