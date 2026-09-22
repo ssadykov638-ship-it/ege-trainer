@@ -864,7 +864,8 @@
         208,
         209,
         210,
-        211
+        211,
+        212
       ],
       "sourceTasks": [
         1,
@@ -886,7 +887,7 @@
         17
       ],
       "answerPage": 247,
-      "adaptationStatus": "OCR only; not adapted"
+      "adaptationStatus": "verified interactive adaptation"
     },
     {
       "variant": 28,
@@ -919,7 +920,7 @@
         17
       ],
       "answerPage": 247,
-      "adaptationStatus": "OCR only; not adapted"
+      "adaptationStatus": "verified interactive adaptation"
     },
     {
       "variant": 29,
@@ -952,7 +953,7 @@
         17
       ],
       "answerPage": 247,
-      "adaptationStatus": "OCR only; not adapted"
+      "adaptationStatus": "verified interactive adaptation"
     },
     {
       "variant": 30,
@@ -985,7 +986,7 @@
         17
       ],
       "answerPage": 247,
-      "adaptationStatus": "OCR only; not adapted"
+      "adaptationStatus": "verified interactive adaptation"
     }
   ],
   "sharedMaterials": {

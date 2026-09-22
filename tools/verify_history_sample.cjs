@@ -12,7 +12,7 @@ const { chromium } = require('playwright');
     const keys = ['431','1324','Уложенная комиссия','23','5','1423','245','двенадцатый','Юрий Долгорукий','3','3','Борис Годунов','34','5','3','1','4'];
     await page.evaluate(keys => {
       const source = subjects.history_oge.sources[0];
-      if (source.variants.length !== 26) throw Error('Expected twenty-six verified variants');
+      if (source.variants.length !== 30) throw Error('Expected thirty verified variants');
       const variant = source.variants[0];
       if (variant.questions.length !== 17) throw Error('Missing tasks');
       variant.questions.forEach((q, i) => {
@@ -694,6 +694,33 @@ const { chromium } = require('playwright');
         await page.screenshot({path:`review/history/v26-${width}-q${i+1}.png`,fullPage:true});
       }
     }
+    const keys27=['214','1423','военные поселения','14','5','2143','521','Екатерина Вторая','Новгород','4','3','Ивана Третьего','34','5','2','3','4'];
+    await page.evaluate(keys=>{
+      const variant=subjects.history_oge.sources[0].variants[26];
+      if(variant.questions.length!==17)throw Error('Missing variant 27 tasks');
+      variant.questions.forEach((q,i)=>{if(q.sourceTask!==i+1||q.sourceVariant!==27)throw Error('Variant 27 mapping');const key=keys[i];const answer=q.type==='match'?{matching:Object.fromEntries([...key].map((d,j)=>[j,String(Number(d)-1)]))}:q.type==='multi'?{selected:[...key].map(d=>Number(d)-1).reverse()}:q.type==='single'?{selected:Number(key)-1}:{selected:key};if(!isCorrect(q,answer))throw Error(`Variant 27 key ${i+1}`);});
+      if(!isCorrect(variant.questions[5],{selected:'4321'}))throw Error('Variant 27 alternate order');
+      if(!isCorrect(variant.questions[7],{selected:'Екатерина II'}))throw Error('Variant 27 roman monarch');
+      if(!isCorrect(variant.questions[11],{selected:'Иван III'}))throw Error('Variant 27 roman monarch schema');
+      if(variant.questions.slice(7,10).some(q=>q.image!==variant.questions[7].image))throw Error('Variant 27 shared map');state.variantIndex=26;state.variantId=variant.id;
+    },keys27);
+    for(const width of [320,390,1280]){await page.setViewportSize({width,height:900});for(let i=0;i<17;i++){await page.evaluate(i=>{state.questionIndex=i;clearDraft();show('exam');},i);await page.locator('.task-media img').evaluateAll(images=>Promise.all(images.map(img=>img.decode())));assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`Variant 27 overflow ${width}.${i+1}`);if(i===6)assert.deepEqual(await page.locator('.task-table tbody td').allTextContents(),['37','24','29','19','33','23','29','18']);await page.screenshot({path:`review/history/v27-${width}-q${i+1}.png`,fullPage:true});}}
+    const keys28=['153','2413','посадник','35','3','1432','543','Пётр Первый','Полтава','2','4','Василий Шуйский','12','5','2','1','4'];
+    await page.evaluate(keys=>{
+      const variant=subjects.history_oge.sources[0].variants[27];
+      if(variant.questions.length!==17)throw Error('Missing variant 28 tasks');
+      variant.questions.forEach((q,i)=>{if(q.sourceTask!==i+1||q.sourceVariant!==28)throw Error('Variant 28 mapping');const key=keys[i];const answer=q.type==='match'?{matching:Object.fromEntries([...key].map((d,j)=>[j,String(Number(d)-1)]))}:q.type==='multi'?{selected:[...key].map(d=>Number(d)-1).reverse()}:q.type==='single'?{selected:Number(key)-1}:{selected:key};if(!isCorrect(q,answer))throw Error(`Variant 28 key ${i+1}`);});
+      if(!isCorrect(variant.questions[5],{selected:'3214'}))throw Error('Variant 28 alternate order');
+      if(!isCorrect(variant.questions[7],{selected:'Пётр I'}))throw Error('Variant 28 roman monarch');
+      if(variant.questions.slice(7,10).some(q=>q.image!==variant.questions[7].image))throw Error('Variant 28 shared map');state.variantIndex=27;state.variantId=variant.id;
+    },keys28);
+    for(const width of [320,390,1280]){await page.setViewportSize({width,height:900});for(let i=0;i<17;i++){await page.evaluate(i=>{state.questionIndex=i;clearDraft();show('exam');},i);await page.locator('.task-media img').evaluateAll(images=>Promise.all(images.map(img=>img.decode())));assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`Variant 28 overflow ${width}.${i+1}`);if(i===6)assert.deepEqual(await page.locator('.task-table tbody td').allTextContents(),['87','13','84','16','22','78']);await page.screenshot({path:`review/history/v28-${width}-q${i+1}.png`,fullPage:true});}}
+    const keys29=['324','4132','вотчина','23','2','1234','351','Александр Первый','Тарутино','1','1','народность','24','2','1','3','2'];
+    await page.evaluate(keys=>{const variant=subjects.history_oge.sources[0].variants[28];if(variant.questions.length!==17)throw Error('Missing variant 29 tasks');variant.questions.forEach((q,i)=>{if(q.sourceTask!==i+1||q.sourceVariant!==29)throw Error('Variant 29 mapping');const key=keys[i];const answer=q.type==='match'?{matching:Object.fromEntries([...key].map((d,j)=>[j,String(Number(d)-1)]))}:q.type==='multi'?{selected:[...key].map(d=>Number(d)-1).reverse()}:q.type==='single'?{selected:Number(key)-1}:{selected:key};if(!isCorrect(q,answer))throw Error(`Variant 29 key ${i+1}`);});if(!isCorrect(variant.questions[5],{selected:'3412'}))throw Error('Variant 29 alternate order');if(!isCorrect(variant.questions[7],{selected:'Александр I'}))throw Error('Variant 29 roman monarch');if(variant.questions.slice(7,10).some(q=>q.image!==variant.questions[7].image))throw Error('Variant 29 shared map');state.variantIndex=28;state.variantId=variant.id;},keys29);
+    for(const width of [320,390,1280]){await page.setViewportSize({width,height:900});for(let i=0;i<17;i++){await page.evaluate(i=>{state.questionIndex=i;clearDraft();show('exam');},i);await page.locator('.task-media img').evaluateAll(images=>Promise.all(images.map(img=>img.decode())));assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`Variant 29 overflow ${width}.${i+1}`);if(i===6)assert.deepEqual(await page.locator('.task-table tbody td').allTextContents(),['169','123','98','229','2','13','12','41','25','11']);await page.screenshot({path:`review/history/v29-${width}-q${i+1}.png`,fullPage:true});}}
+    const keys30=['243','3421','баскак','15','2','1342','153','Николай Первый','Каспийское море','1','2','Бухарестский','25','3','2','3','1'];
+    await page.evaluate(keys=>{const variant=subjects.history_oge.sources[0].variants[29];if(variant.questions.length!==17)throw Error('Missing variant 30 tasks');variant.questions.forEach((q,i)=>{if(q.sourceTask!==i+1||q.sourceVariant!==30)throw Error('Variant 30 mapping');const key=keys[i];const answer=q.type==='match'?{matching:Object.fromEntries([...key].map((d,j)=>[j,String(Number(d)-1)]))}:q.type==='multi'?{selected:[...key].map(d=>Number(d)-1).reverse()}:q.type==='single'?{selected:Number(key)-1}:{selected:key};if(!isCorrect(q,answer))throw Error(`Variant 30 key ${i+1}`);});if(!isCorrect(variant.questions[5],{selected:'4213'}))throw Error('Variant 30 alternate order');if(!isCorrect(variant.questions[7],{selected:'Николай I'}))throw Error('Variant 30 roman monarch');if(!isCorrect(variant.questions[8],{selected:'Каспий'}))throw Error('Variant 30 alternate geography');if(variant.questions.slice(7,10).some(q=>q.image!==variant.questions[7].image))throw Error('Variant 30 shared map');state.variantIndex=29;state.variantId=variant.id;},keys30);
+    for(const width of [320,390,1280]){await page.setViewportSize({width,height:900});for(let i=0;i<17;i++){await page.evaluate(i=>{state.questionIndex=i;clearDraft();show('exam');},i);await page.locator('.task-media img').evaluateAll(images=>Promise.all(images.map(img=>img.decode())));assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`Variant 30 overflow ${width}.${i+1}`);if(i===6)assert.deepEqual(await page.locator('.task-table tbody td').allTextContents(),['75 108','52 765','43 169','31 819','61 986','39 106','91 712','70 049','81 372','72 250','85 715','79 687']);await page.screenshot({path:`review/history/v30-${width}-q${i+1}.png`,fullPage:true});}}
     await page.setViewportSize({width:320,height:900});
     await page.evaluate(()=>{
       const variant=subjects.history_oge.sources[0].variants[14];
@@ -745,6 +772,6 @@ const { chromium } = require('playwright');
     assert.equal(retryState.attempts.length,1,'Retry must preserve attempt history');
     assert.equal(retryState.best,12,'Retry must preserve best score');
     assert.equal(await page.locator('#doneValue').innerText(),'1','Retry must not remove completed result from statistics');
-    console.log('442 source keys, alternate answers, shared maps, native tables, 1326 viewport renders, mistake review and safe retry verified.');
+    console.log('510 source keys, alternate answers, shared maps, native tables, 1530 viewport renders, mistake review and safe retry verified.');
   } finally { await browser.close(); }
 })().catch(error=>{console.error(error);process.exitCode=1;});
