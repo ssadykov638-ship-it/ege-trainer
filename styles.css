@@ -12,7 +12,8 @@
   --good: #23835f;
   --bad: #bd4d3d;
   --shadow: 0 24px 70px rgba(31, 39, 48, 0.22);
-  font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif;
+  font-family: "Times New Roman", Times, serif;
+  font-size: 17px;
 }
 
 * {
@@ -1008,13 +1009,13 @@ h2 {
 }
 
 .teacher-account-control input {
-  width: 19px;
-  height: 19px;
+  width: 15px;
+  height: 15px;
   accent-color: var(--teal);
 }
 
 .teacher-account-control b {
-  font-size: 11px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
@@ -1022,9 +1023,9 @@ h2 {
   align-self: flex-start;
   flex: 0 0 auto;
   width: auto;
-  height: 34px;
-  padding: 0 11px;
-  font-size: 12px;
+  height: 30px;
+  padding: 0 9px;
+  font-size: 13px;
 }
 
 .teacher-submission {
@@ -1110,6 +1111,37 @@ h2 {
   gap: 8px;
   padding: 10px 12px;
   border-left: 3px solid var(--good);
+  cursor: pointer;
+}
+
+.teacher-review-question:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+.teacher-review-question-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8px;
+}
+
+.teacher-review-indicator {
+  margin: 0;
+  color: var(--muted);
+  font-size: 22px;
+  line-height: 0.8;
+  transform: rotate(90deg);
+  transition: transform 0.15s ease;
+}
+
+.teacher-review-question.is-expanded .teacher-review-indicator {
+  transform: rotate(-90deg);
+}
+
+.teacher-review-details {
+  display: grid;
+  gap: 8px;
 }
 
 .teacher-review-question.is-wrong {

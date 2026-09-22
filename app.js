@@ -1,5 +1,5 @@
 const STORAGE_KEY = "ege-open-access-progress-v1";
-const APP_VERSION = "20260922-34";
+const APP_VERSION = "20260922-35";
 const ACCESS_KEY = "ege-access-session-v1";
 const AUTH_DB_KEY = "ege-auth-db-v1";
 const DEVICE_KEY = "ege-device-id-v1";
@@ -1390,10 +1390,32 @@ function renderTeacherReview() {
     const correctAnswer = isCorrect(question, answer);
     const item = document.createElement("article");
     item.className = `review-item teacher-review-question ${correctAnswer ? "is-correct" : "is-wrong"}`;
+    item.tabIndex = 0;
+    item.setAttribute("role", "button");
+    item.setAttribute("aria-expanded", String(!correctAnswer));
+    const head = document.createElement("div");
+    head.className = "teacher-review-question-head";
     const title = document.createElement("strong");
     title.textContent = `${index + 1}. ${question.text}`;
-    item.appendChild(title);
-    if (!correctAnswer) appendReviewQuestionDetails(item, question);
+    const indicator = document.createElement("span");
+    indicator.className = "teacher-review-indicator";
+    indicator.textContent = "›";
+    head.append(title, indicator);
+    item.appendChild(head);
+    let details = null;
+    const setExpanded = (expanded) => {
+      if (expanded && !details) {
+        details = document.createElement("div");
+        details.className = "teacher-review-details";
+        appendReviewQuestionDetails(details, question);
+        item.insertBefore(details, values);
+      } else if (!expanded && details) {
+        details.remove();
+        details = null;
+      }
+      item.classList.toggle("is-expanded", expanded);
+      item.setAttribute("aria-expanded", String(expanded));
+    };
     const values = document.createElement("div");
     values.className = "teacher-review-values";
     const userAnswer = document.createElement("span");
@@ -1402,6 +1424,13 @@ function renderTeacherReview() {
     expected.textContent = `Правильно: ${formatCorrect(question)}`;
     values.append(userAnswer, expected);
     item.appendChild(values);
+    setExpanded(!correctAnswer);
+    item.addEventListener("click", () => setExpanded(item.getAttribute("aria-expanded") !== "true"));
+    item.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      setExpanded(item.getAttribute("aria-expanded") !== "true");
+    });
     nodes.teacherReviewList.appendChild(item);
   });
 }
