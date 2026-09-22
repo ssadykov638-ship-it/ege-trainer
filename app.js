@@ -1,5 +1,5 @@
 const STORAGE_KEY = "ege-open-access-progress-v1";
-const APP_VERSION = "20260922-32";
+const APP_VERSION = "20260922-33";
 const ACCESS_KEY = "ege-access-session-v1";
 const AUTH_DB_KEY = "ege-auth-db-v1";
 const DEVICE_KEY = "ege-device-id-v1";
@@ -1254,18 +1254,14 @@ function renderTeacher() {
   const visibleStudents = allStudents.filter((student) => enrolledIds.has(student.id));
   const submissions = (cloudStore ? state.cloudSubmissions : loadSubmissions())
     .filter((submission) => enrolledIds.has(submission.userId || submission.user_id));
-  const roster = document.createElement("article");
-  roster.className = "review-item";
-  roster.innerHTML = `<strong>Ученики с ДЗ: ${visibleStudents.length}</strong><span>${visibleStudents.map((student) => `${student.name} (${student.login})`).join(", ") || "Пока никто не подключён к учебной группе"}</span>`;
-  nodes.teacherReport.appendChild(roster);
   if (cloudStore) {
     const accounts = document.createElement("article");
     accounts.className = "review-item teacher-accounts";
     const title = document.createElement("strong");
-    title.textContent = `Аккаунты: ${allStudents.length}`;
+    title.textContent = `Аккаунты: ${allStudents.length} · получают ДЗ: ${visibleStudents.length}`;
     accounts.appendChild(title);
     const note = document.createElement("span");
-    note.textContent = "Включённые получают ДЗ и попадают в журнал. Остальные могут тренироваться самостоятельно.";
+    note.textContent = "Отключённые продолжают тренироваться самостоятельно.";
     accounts.appendChild(note);
     allStudents.forEach((student) => {
       const row = document.createElement("label");
@@ -1320,7 +1316,22 @@ function renderTeacher() {
     item.className = "review-item teacher-submission";
     const date = new Date(submission.at || submission.submitted_at).toLocaleString("ru-RU", { dateStyle: "short", timeStyle: "short" });
     const student = visibleStudents.find((item) => item.id === (submission.userId || submission.user_id));
-    item.innerHTML = `<strong>${submission.studentName || student?.name || "Ученик"} · ${submission.variantTitle || submission.variant_title}</strong><span>${submission.subjectTitle || submission.subject_title} · ${submission.sourceTitle || submission.source_title}${submission.homeworkId || submission.homework_id ? " · ДЗ" : ""}</span><span>${submission.score}/${submission.total} · ${date}</span><p>Email: ${submission.login || student?.login || "нет данных"}</p>`;
+    const head = document.createElement("div");
+    head.className = "teacher-submission-head";
+    const heading = document.createElement("strong");
+    heading.textContent = `${submission.studentName || student?.name || "Ученик"} · ${submission.variantTitle || submission.variant_title}`;
+    const result = document.createElement("b");
+    result.textContent = `${submission.score}/${submission.total}`;
+    head.append(heading, result);
+    const meta = document.createElement("span");
+    meta.className = "teacher-submission-meta";
+    meta.textContent = `${submission.subjectTitle || submission.subject_title} · ${submission.sourceTitle || submission.source_title}${submission.homeworkId || submission.homework_id ? " · ДЗ" : ""} · ${date}`;
+    const footer = document.createElement("div");
+    footer.className = "teacher-submission-footer";
+    const email = document.createElement("span");
+    email.textContent = submission.login || student?.login || "нет данных";
+    footer.appendChild(email);
+    item.append(head, meta, footer);
     if (cloudStore) {
       const detailsButton = document.createElement("button");
       detailsButton.type = "button";
@@ -1365,7 +1376,7 @@ function renderTeacher() {
           detailsButton.disabled = false;
         }
       });
-      item.appendChild(detailsButton);
+      footer.appendChild(detailsButton);
     }
     nodes.teacherReport.appendChild(item);
   });
