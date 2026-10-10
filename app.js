@@ -1301,6 +1301,39 @@ function renderTeacher() {
     const note = document.createElement("span");
     note.textContent = "Отключённые тренируются самостоятельно. Скрытые не попадают в списки и успеваемость.";
     accounts.appendChild(note);
+    const restoreRow = document.createElement("form");
+    restoreRow.className = "teacher-restore-row";
+    const restoreInput = document.createElement("input");
+    restoreInput.type = "email";
+    restoreInput.placeholder = "Email удалённого ученика";
+    restoreInput.setAttribute("aria-label", "Email удалённого ученика");
+    const restoreButton = document.createElement("button");
+    restoreButton.type = "submit";
+    restoreButton.textContent = "Вернуть";
+    restoreRow.append(restoreInput, restoreButton);
+    restoreRow.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const login = restoreInput.value.trim();
+      if (!EMAIL_PATTERN.test(login)) {
+        restoreInput.setCustomValidity("Введите корректный email");
+        restoreInput.reportValidity();
+        return;
+      }
+      restoreInput.setCustomValidity("");
+      restoreInput.disabled = true;
+      restoreButton.disabled = true;
+      restoreButton.textContent = "Возвращаю...";
+      try {
+        await cloudStore.restoreStudentToTeacher(login);
+        await refreshCloudData();
+        renderTeacher();
+      } catch (error) {
+        restoreInput.disabled = false;
+        restoreButton.disabled = false;
+        restoreButton.textContent = error.message || "Не найден";
+      }
+    });
+    accounts.appendChild(restoreRow);
     if (hiddenCount) {
       const hiddenToggle = document.createElement("button");
       hiddenToggle.type = "button";
