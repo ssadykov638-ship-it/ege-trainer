@@ -1007,11 +1007,11 @@ h2 {
 
 .teacher-account-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(105px, 1fr) minmax(108px, auto) 52px;
   align-items: center;
-  gap: 10px;
-  min-height: 48px;
-  padding: 7px 0;
+  gap: 7px;
+  min-height: 45px;
+  padding: 6px 0;
   border-top: 1px solid var(--line);
 }
 
@@ -1036,53 +1036,63 @@ h2 {
   min-width: 0;
 }
 
+.teacher-account-row > span:first-child b {
+  font-size: 14px;
+  line-height: 1.15;
+}
+
 .teacher-account-row small {
   overflow-wrap: anywhere;
   margin-top: 2px;
   color: var(--muted);
-  font-size: 10px;
-  line-height: 1.2;
+  font-size: 9px;
+  line-height: 1.15;
 }
 
 .teacher-account-control {
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: flex-end;
+  gap: 4px;
   flex: 0 0 auto;
 }
 
 .teacher-account-control input {
-  width: 15px;
-  height: 15px;
+  width: 13px;
+  height: 13px;
+  margin: 0;
   accent-color: var(--teal);
 }
 
 .teacher-account-control b {
-  font-size: 12px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
   white-space: nowrap;
 }
 
 .teacher-account-actions {
   display: flex;
-  gap: 4px;
+  justify-content: flex-end;
+  gap: 3px;
   margin: 0 !important;
 }
 
 .icon-action {
-  width: 27px;
-  height: 27px;
+  width: 24px;
+  height: 24px;
   padding: 0;
   border: 1px solid var(--line);
-  border-radius: 7px;
-  background: var(--soft);
-  color: var(--ink);
-  font-size: 18px;
+  border-radius: 6px;
+  background: #faf8f4;
+  color: var(--muted);
+  font-size: 15px;
   line-height: 1;
 }
 
 .icon-action.is-danger {
   border-color: #efc8c1;
-  background: #fff0ed;
+  background: #fff8f6;
   color: var(--bad);
 }
 
@@ -1343,12 +1353,8 @@ h2 {
 
 @media (max-width: 520px) {
   .teacher-account-row {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-
-  .teacher-account-actions {
-    grid-column: 1 / -1;
-    justify-content: flex-end;
+    grid-template-columns: minmax(92px, 1fr) minmax(96px, auto) 51px;
+    gap: 5px;
   }
 }
 
