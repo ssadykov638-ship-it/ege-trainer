@@ -274,6 +274,16 @@
     });
   }
 
+  async function restoreStudentToTeacher(login) {
+    const session = readSession();
+    await request("/rest/v1/rpc/restore_student_to_teacher", {
+      method: "POST",
+      token: session?.access_token,
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({ target_login: String(login || "").trim().toLowerCase() })
+    });
+  }
+
   async function loadStudentProgress(studentId) {
     const session = readSession();
     const rows = await request(`/rest/v1/progress?select=variant_id,data,updated_at&user_id=eq.${encodeURIComponent(studentId)}`, {
@@ -366,6 +376,7 @@
     setStudentHomeworkAccess,
     setStudentHidden,
     deleteStudentAccount,
+    restoreStudentToTeacher,
     loadStudentProgress,
     loadStudentVariantProgress,
     loadSubmissions,
