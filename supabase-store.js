@@ -238,11 +238,50 @@
 
   async function loadStudents() {
     const session = readSession();
-    return request("/rest/v1/profiles?select=id,role,name,login,created_at&role=eq.student&order=created_at.asc", {
+    try {
+      return await request("/rest/v1/profiles?select=id,role,name,login,created_at,hidden_from_teacher&role=eq.student&order=created_at.asc", {
+        method: "GET",
+        token: session?.access_token,
+        prefer: ""
+      });
+    } catch (error) {
+      if (!String(error.message).includes("hidden_from_teacher")) throw error;
+      return request("/rest/v1/profiles?select=id,role,name,login,created_at&role=eq.student&order=created_at.asc", {
+        method: "GET",
+        token: session?.access_token,
+        prefer: ""
+      });
+    }
+  }
+
+  async function setStudentHidden(studentId, hidden) {
+    const session = readSession();
+    await request(`/rest/v1/profiles?id=eq.${encodeURIComponent(studentId)}`, {
+      method: "PATCH",
+      token: session?.access_token,
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({ hidden_from_teacher: Boolean(hidden) })
+    });
+  }
+
+  async function deleteStudentAccount(studentId) {
+    const session = readSession();
+    await request("/rest/v1/rpc/delete_student_account", {
+      method: "POST",
+      token: session?.access_token,
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({ target_user_id: studentId })
+    });
+  }
+
+  async function loadStudentProgress(studentId) {
+    const session = readSession();
+    const rows = await request(`/rest/v1/progress?select=variant_id,data,updated_at&user_id=eq.${encodeURIComponent(studentId)}`, {
       method: "GET",
       token: session?.access_token,
       prefer: ""
     });
+    return Object.fromEntries((rows || []).map((item) => [item.variant_id, item.data || {}]));
   }
 
   async function loadStudentMemberships() {
@@ -325,8 +364,12 @@
     loadStudents,
     loadStudentMemberships,
     setStudentHomeworkAccess,
+    setStudentHidden,
+    deleteStudentAccount,
+    loadStudentProgress,
     loadStudentVariantProgress,
     loadSubmissions,
     saveSubmission
   };
 })();
+
