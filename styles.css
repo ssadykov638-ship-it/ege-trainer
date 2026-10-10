@@ -1031,6 +1031,36 @@ h2 {
   font-weight: 700;
 }
 
+.teacher-restore-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 5px;
+  margin: 7px 0 5px;
+}
+
+.teacher-restore-row input {
+  min-width: 0;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 11px;
+}
+
+.teacher-restore-row button {
+  height: 30px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 7px;
+  background: var(--teal-soft);
+  color: var(--teal);
+  font-size: 11px;
+  font-weight: 800;
+}
+
 .teacher-account-row > span:first-child {
   display: grid;
   min-width: 0;
