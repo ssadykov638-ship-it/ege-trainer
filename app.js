@@ -1288,8 +1288,9 @@ function renderTeacher() {
     : allStudents.map((student) => student.id));
   const activeStudents = allStudents.filter((student) => !student.hidden_from_teacher);
   const visibleStudents = activeStudents.filter((student) => enrolledIds.has(student.id));
+  const listedStudentIds = new Set(allStudents.map((student) => student.id));
   const submissions = (cloudStore ? state.cloudSubmissions : loadSubmissions())
-    .filter((submission) => enrolledIds.has(submission.userId || submission.user_id));
+    .filter((submission) => enrolledIds.has(submission.userId || submission.user_id) && listedStudentIds.has(submission.userId || submission.user_id));
   if (cloudStore) {
     const accounts = document.createElement("article");
     accounts.className = "review-item teacher-accounts";
@@ -1365,11 +1366,11 @@ function renderTeacher() {
       const deleteButton = document.createElement("button");
       deleteButton.type = "button";
       deleteButton.className = "icon-action is-danger";
-      deleteButton.title = "Удалить аккаунт и его данные";
+      deleteButton.title = "Убрать из кабинета учителя";
       deleteButton.setAttribute("aria-label", deleteButton.title);
       deleteButton.textContent = "×";
       deleteButton.addEventListener("click", async () => {
-        const approved = confirm(`Удалить ученика «${student.name}»? Его аккаунт, ответы и результаты будут удалены без возможности восстановления. Другие ученики не пострадают.`);
+        const approved = confirm(`Убрать ученика «${student.name}» из кабинета учителя? Профиль, вход и результаты ученика сохранятся, но больше не будут отображаться учителю.`);
         if (!approved) return;
         deleteButton.disabled = true;
         try {
