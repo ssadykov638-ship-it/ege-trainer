@@ -1,6 +1,8 @@
 -- One-time migration for student visibility, analytics and safe account deletion.
 alter table public.profiles
   add column if not exists hidden_from_teacher boolean not null default false;
+alter table public.profiles
+  add column if not exists removed_from_teacher boolean not null default false;
 
 drop policy if exists "profiles_teacher_update_students" on public.profiles;
 create policy "profiles_teacher_update_students"
@@ -24,7 +26,11 @@ begin
   ) then
     raise exception 'Student account not found';
   end if;
-  delete from auth.users where id = target_user_id;
+  update public.profiles
+  set removed_from_teacher = true,
+      hidden_from_teacher = true,
+      updated_at = now()
+  where id = target_user_id and role = 'student';
 end;
 $$;
 
