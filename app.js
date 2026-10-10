@@ -78,6 +78,10 @@ const state = {
   teacherReview: null,
   teacherTab: "students",
   showHiddenStudents: false,
+  teacherSearch: "",
+  teacherResultFilter: "all",
+  teacherPeriod: "all",
+  teacherSort: "name",
   dashboardStudent: null,
   variantNotice: "",
   authMode: "login",
@@ -265,6 +269,24 @@ function setPasswordVisible(isVisible) {
   nodes.passwordToggleButton.title = isVisible ? "Скрыть пароль" : "Показать пароль";
 }
 
+function showCloudAccessError(error, retryAction) {
+  const message = error?.message || "Не удалось подключиться";
+  const isNetworkError = /failed to fetch|network|load failed/i.test(message);
+  nodes.accessError.innerHTML = "";
+  const text = document.createElement("span");
+  text.textContent = isNetworkError
+    ? "База временно запускается. Данные сохранены, попробуйте подключиться ещё раз."
+    : message;
+  nodes.accessError.appendChild(text);
+  if (!isNetworkError) return;
+  const retry = document.createElement("button");
+  retry.type = "button";
+  retry.className = "compact-button access-retry";
+  retry.textContent = "Повторить подключение";
+  retry.addEventListener("click", retryAction);
+  nodes.accessError.appendChild(retry);
+}
+
 function makeId(prefix) {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -441,7 +463,7 @@ async function registerAccount() {
       show("subjects");
       return;
     } catch (error) {
-      nodes.accessError.textContent = `Supabase: ${error.message || "не удалось зарегистрироваться"}`;
+      showCloudAccessError(error, registerAccount);
       return;
     }
   }
@@ -489,7 +511,7 @@ async function loginWithAccess() {
       show("subjects");
       return;
     } catch (error) {
-      nodes.accessError.textContent = `Supabase: ${error.message || "не удалось войти"}`;
+      showCloudAccessError(error, loginWithAccess);
       return;
     }
   }
@@ -998,7 +1020,6 @@ function renderQuestionInput(question) {
       nodes.screenTitle.textContent = "Материал";
       show("image");
     };
-
     figure.addEventListener("click", openImage);
     figure.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") openImage();
@@ -1262,6 +1283,97 @@ function renderSourceNote() {
   nodes.sourceNote.textContent = `${state.access.name} · ${mode} · ${cloudStore ? "данные синхронизируются через Supabase" : "локальный режим"}.`;
 }
 
+function renderTeacherTools() {
+  const tools = document.createElement("div");
+  tools.className = "teacher-tools";
+  const search = document.createElement("input");
+  search.type = "search";
+  search.placeholder = "Поиск ученика";
+  search.value = state.teacherSearch;
+  search.addEventListener("input", () => {
+    state.teacherSearch = search.value;
+    renderTeacher();
+  });
+  const period = document.createElement("select");
+  period.setAttribute("aria-label", "Период результатов");
+  [["all", "Всё время"], ["week", "Неделя"], ["month", "Месяц"]].forEach(([value, label]) => period.add(new Option(label, value)));
+  period.value = state.teacherPeriod;
+  period.addEventListener("change", () => {
+    state.teacherPeriod = period.value;
+    renderTeacher();
+  });
+  const filter = document.createElement("select");
+  filter.setAttribute("aria-label", "Тип работы");
+  [["all", "Все работы"], ["homework", "Только ДЗ"], ["practice", "Самостоятельные"]].forEach(([value, label]) => filter.add(new Option(label, value)));
+  filter.value = state.teacherResultFilter;
+  filter.addEventListener("change", () => {
+    state.teacherResultFilter = filter.value;
+    renderTeacher();
+  });
+  const sort = document.createElement("select");
+  sort.setAttribute("aria-label", "Сортировка учеников");
+  [["name", "По имени"], ["average", "По результату"], ["dynamic", "По динамике"]].forEach(([value, label]) => sort.add(new Option(label, value)));
+  sort.value = state.teacherSort;
+  sort.addEventListener("change", () => {
+    state.teacherSort = sort.value;
+    renderTeacher();
+  });
+  const exportButton = document.createElement("button");
+  exportButton.type = "button";
+  exportButton.className = "compact-button";
+  exportButton.textContent = "Excel";
+  exportButton.title = "Скачать отчёт CSV для Excel";
+  exportButton.addEventListener("click", exportTeacherReport);
+  const printButton = document.createElement("button");
+  printButton.type = "button";
+  printButton.className = "compact-button";
+  printButton.textContent = "PDF";
+  printButton.title = "Открыть печать и сохранить как PDF";
+  printButton.addEventListener("click", () => window.print());
+  tools.append(search, period, filter, sort, exportButton, printButton);
+  nodes.teacherReport.appendChild(tools);
+}
+
+function periodStart(period) {
+  const now = new Date();
+  if (period === "week") return new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
+  if (period === "month") return new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+  return null;
+}
+
+function filteredTeacherSubmissions() {
+  const start = periodStart(state.teacherPeriod);
+  return (cloudStore ? state.cloudSubmissions : loadSubmissions()).filter((item) => {
+    const mode = item.attemptMode || item.attempt_mode;
+    const at = new Date(item.at || item.submitted_at || 0);
+    return (state.teacherResultFilter === "all" || mode === state.teacherResultFilter) && (!start || at >= start);
+  });
+}
+
+function exportTeacherReport() {
+  const studentById = new Map(state.cloudStudents.map((student) => [student.id, student]));
+  const rows = [["Ученик", "Email", "Вариант", "Режим", "Баллы", "Всего", "Дата"]];
+  filteredTeacherSubmissions().forEach((item) => {
+    const student = studentById.get(item.userId || item.user_id);
+    rows.push([
+      student?.name || "",
+      student?.login || "",
+      item.variantTitle || item.variant_title || "",
+      (item.attemptMode || item.attempt_mode) === "homework" ? "ДЗ" : "Самостоятельно",
+      item.score,
+      item.total,
+      item.at || item.submitted_at || ""
+    ]);
+  });
+  const csv = "\ufeff" + rows.map((row) => row.map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`).join(";")).join("\r\n");
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `ege-report-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 function renderTeacher() {
   nodes.eyebrow.textContent = "ЕГЭ · админ";
   nodes.screenTitle.textContent = "Учитель";
@@ -1272,13 +1384,27 @@ function renderTeacher() {
   nodes.teacherReport.innerHTML = "";
   if (state.cloudError) {
     const warning = document.createElement("article");
-    warning.className = "review-item";
-    warning.innerHTML = `<strong>Не удалось загрузить данные</strong><span>${state.cloudError}</span>`;
+    warning.className = "review-item connection-state";
+    warning.innerHTML = "<strong>База временно недоступна</strong><span>Данные сохранены. Возможно, проект Supabase запускается.</span>";
+    const retry = document.createElement("button");
+    retry.type = "button";
+    retry.className = "compact-button";
+    retry.textContent = "Повторить подключение";
+    retry.addEventListener("click", async () => {
+      retry.disabled = true;
+      retry.textContent = "Подключаюсь...";
+      await refreshCloudData();
+      renderTeacher();
+    });
+    warning.appendChild(retry);
     nodes.teacherReport.appendChild(warning);
   }
-  const allStudents = cloudStore
+  const loadedStudents = cloudStore
     ? state.cloudStudents
     : db.students.map((student) => db.users.find((user) => user.id === student.userId)).filter(Boolean);
+  renderTeacherTools();
+  const query = state.teacherSearch.trim().toLowerCase();
+  const allStudents = loadedStudents.filter((student) => !query || `${student.name} ${student.login}`.toLowerCase().includes(query));
   if (state.teacherTab === "performance") {
     renderTeacherPerformance(allStudents);
     return;
@@ -1425,6 +1551,20 @@ function renderTeacher() {
   homework.className = "review-item";
   const assignedHomework = homeworkItems();
   homework.innerHTML = `<strong>ДЗ: ${assignedHomework.length}</strong><span>${assignedHomework.map(homeworkTitle).join("; ") || "ДЗ пока не задано. Откройте предмет, источник и нажмите нужный вариант."}</span>`;
+  if (cloudStore && assignedHomework.length) {
+    const clearButton = document.createElement("button");
+    clearButton.type = "button";
+    clearButton.className = "compact-button";
+    clearButton.textContent = "Снять все ДЗ";
+    clearButton.addEventListener("click", async () => {
+      if (!confirm("Снять все назначенные домашние задания?")) return;
+      clearButton.disabled = true;
+      await Promise.all(assignedHomework.map((item) => cloudStore.removeHomework({ homeworkId: item.id })));
+      await refreshCloudData();
+      renderTeacher();
+    });
+    homework.appendChild(clearButton);
+  }
   nodes.teacherReport.appendChild(homework);
   if (!submissions.length) {
     const empty = document.createElement("article");
@@ -1488,12 +1628,17 @@ function analyticsRows(progressMap) {
   return Object.entries(progressMap || {}).flatMap(([variantId, progress]) => {
     const variant = findVariant(variantId);
     if (!variant || isScanVariant(variant)) return [];
-    return (progress.attempts || []).map((attempt) => ({
+    const context = findVariantContext(variantId);
+    const attempts = progress.attempts || [];
+    return attempts.map((attempt, index) => ({
       variantId,
       title: variant.title,
+      subjectTitle: context?.subject.title || "Предмет",
+      examType: (context?.subject.examType || "ege").toUpperCase(),
       score: Number(attempt.score) || 0,
       total: Number(attempt.total) || variantLength(variant),
-      at: attempt.at || null
+      at: attempt.at || null,
+      answers: attempt.answers || (index === attempts.length - 1 ? progress.answers : null)
     }));
   }).sort((a, b) => new Date(a.at || 0) - new Date(b.at || 0));
 }
@@ -1512,20 +1657,28 @@ function trendForRows(rows) {
 
 function renderTeacherPerformance(allStudents) {
   const students = allStudents.filter((student) => !student.hidden_from_teacher);
-  const submissions = cloudStore ? state.cloudSubmissions : loadSubmissions();
+  const submissions = filteredTeacherSubmissions();
   if (!students.length) {
     nodes.teacherReport.innerHTML = '<article class="review-item"><strong>Нет активных учеников</strong><p>Скрытых учеников можно вернуть во вкладке «Ученики».</p></article>';
     return;
   }
-  students.forEach((student) => {
+  const summaries = students.map((student) => {
     const studentRows = submissions
       .filter((item) => (item.userId || item.user_id) === student.id)
       .map((item) => ({ score: item.score, total: item.total, at: item.at || item.submitted_at }));
     const trend = trendForRows(studentRows);
+    return { student, trend };
+  });
+  summaries.sort((a, b) => {
+    if (state.teacherSort === "average") return b.trend.average - a.trend.average;
+    if (state.teacherSort === "dynamic") return b.trend.delta - a.trend.delta;
+    return a.student.name.localeCompare(b.student.name, "ru");
+  });
+  summaries.forEach(({ student, trend }, index) => {
     const card = document.createElement("button");
     card.type = "button";
     card.className = "performance-card";
-    card.innerHTML = `<span><strong>${student.name}</strong><small>${student.login}</small></span><span class="performance-metric"><b>${trend.average}%</b><small class="${trend.delta < 0 ? "is-negative" : "is-positive"}">${trend.label}</small></span>`;
+    card.innerHTML = `<span><strong>${state.teacherSort === "name" ? "" : `${index + 1}. `}${student.name}</strong><small>${student.login}</small></span><span class="performance-metric"><b>${trend.average}%</b><small class="${trend.delta < 0 ? "is-negative" : "is-positive"}">${trend.label}</small></span>`;
     card.addEventListener("click", async () => {
       card.disabled = true;
       try {
@@ -1547,19 +1700,72 @@ function renderDashboard() {
   const progress = teacherView ? state.dashboardStudent.progress : state.progress;
   const rows = analyticsRows(progress);
   const trend = trendForRows(rows);
+  const activeDates = new Set(rows.filter((row) => row.at).map((row) => new Date(row.at).toISOString().slice(0, 10)));
+  let streak = 0;
+  const cursor = new Date();
+  while (activeDates.has(cursor.toISOString().slice(0, 10))) {
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  const weekStart = new Date();
+  weekStart.setDate(weekStart.getDate() - 7);
+  const weeklyCount = rows.filter((row) => row.at && new Date(row.at) >= weekStart).length;
   nodes.eyebrow.textContent = teacherView ? "Учитель · успеваемость" : "Личный кабинет";
   nodes.screenTitle.textContent = student?.name || "Успеваемость";
-  nodes.dashboardSummary.innerHTML = `<p class="task-type">Динамика результатов</p><div class="dashboard-kpis"><span><b>${trend.average}%</b><small>средняя точность</small></span><span><b>${rows.length}</b><small>попыток</small></span><span><b class="${trend.delta < 0 ? "is-negative" : "is-positive"}">${trend.delta > 0 ? "+" : ""}${trend.delta}%</b><small>последние 3</small></span></div><p class="dashboard-verdict">${trend.label}</p>`;
+  nodes.dashboardSummary.innerHTML = `<p class="task-type">Динамика результатов</p><div class="dashboard-kpis"><span><b>${trend.average}%</b><small>точность</small></span><span><b>${streak}</b><small>дней подряд</small></span><span><b>${weeklyCount}/3</b><small>цель недели</small></span></div><p class="dashboard-verdict">${trend.label}</p>`;
   nodes.dashboardList.innerHTML = "";
   if (!rows.length) {
     nodes.dashboardList.innerHTML = '<article class="review-item"><strong>Пока нет результатов</strong><p>После завершения первого интерактивного варианта здесь появится динамика.</p></article>';
     return;
   }
+  const calendar = document.createElement("article");
+  calendar.className = "dashboard-panel";
+  const calendarDays = Array.from({ length: 28 }, (_, index) => {
+    const date = new Date();
+    date.setDate(date.getDate() - (27 - index));
+    return { date, key: date.toISOString().slice(0, 10) };
+  });
+  calendar.innerHTML = `<strong>Активность за 4 недели</strong><div class="activity-calendar">${calendarDays.map(({ date, key }) => `<i class="${activeDates.has(key) ? "is-active" : ""}" title="${date.toLocaleDateString("ru-RU")}"></i>`).join("")}</div>`;
+  nodes.dashboardList.appendChild(calendar);
+  const groupMap = new Map();
+  rows.forEach((row) => {
+    const key = `${row.examType} · ${row.subjectTitle}`;
+    const values = groupMap.get(key) || [];
+    values.push(row.total ? row.score / row.total * 100 : 0);
+    groupMap.set(key, values);
+  });
+  const groups = [...groupMap].map(([label, values]) => ({
+    label,
+    average: Math.round(values.reduce((sum, value) => sum + value, 0) / values.length)
+  })).sort((a, b) => b.average - a.average);
+  const strengths = document.createElement("article");
+  strengths.className = "dashboard-panel";
+  strengths.innerHTML = `<strong>Сильные и слабые направления</strong><div class="subject-metrics">${groups.map((group, index) => `<span><b>${group.label}</b><i>${group.average}%</i></span>`).join("")}</div><p>Рекомендация: ${groups.length ? `уделить внимание направлению «${groups[groups.length - 1].label}»` : "завершить первый вариант"}.</p>`;
+  nodes.dashboardList.appendChild(strengths);
   rows.slice().reverse().forEach((row) => {
     const percent = row.total ? Math.round(row.score / row.total * 100) : 0;
-    const item = document.createElement("article");
+    const item = document.createElement(row.answers ? "button" : "article");
+    if (row.answers) item.type = "button";
     item.className = "dashboard-attempt";
     item.innerHTML = `<span><strong>${row.title}</strong><small>${row.at ? new Date(row.at).toLocaleDateString("ru-RU") : "дата не указана"}</small></span><b>${row.score}/${row.total} · ${percent}%</b>`;
+    if (row.answers) {
+      item.title = "Открыть ответы и ошибки";
+      item.addEventListener("click", () => {
+        const context = findVariantContext(row.variantId);
+        if (!context) return;
+        state.teacherReview = {
+          submission: {
+            subjectTitle: row.subjectTitle,
+            sourceTitle: context.source.title
+          },
+          student,
+          progress: { answers: row.answers },
+          variant: context.variant,
+          returnScreen: "dashboard"
+        };
+        show("teacherReview");
+      });
+    }
     nodes.dashboardList.appendChild(item);
   });
 }
@@ -1751,7 +1957,12 @@ function restartCurrentVariant() {
 function completeInteractiveAttempt(variant) {
   const progress = variantProgress(variant);
   const score = countCorrect(variant, progress);
-  const attempt = { score, total: variantLength(variant), at: new Date().toISOString() };
+  const attempt = {
+    score,
+    total: variantLength(variant),
+    at: new Date().toISOString(),
+    answers: JSON.parse(JSON.stringify(progress.answers || {}))
+  };
   progress.completed = true;
   progress.best = Math.max(progress.best || 0, score);
   progress.attempts.push(attempt);
@@ -1837,6 +2048,16 @@ function findVariant(variantId) {
   return Object.values(subjects).flatMap((subject) => subject.sources).flatMap((sourceItem) => sourceItem.variants).find((variant) => variant.id === variantId);
 }
 
+function findVariantContext(variantId) {
+  for (const [subjectId, subject] of Object.entries(subjects)) {
+    for (const sourceItem of subject.sources) {
+      const variant = sourceItem.variants.find((item) => item.id === variantId);
+      if (variant) return { subjectId, subject, source: sourceItem, variant };
+    }
+  }
+  return null;
+}
+
 function goBack() {
   if (state.screen === "subjects" && state.examType) {
     state.examType = null;
@@ -1849,7 +2070,7 @@ function goBack() {
   else if (state.screen === "scan") show("variants");
   else if (state.screen === "result") show("variants");
   else if (state.screen === "image") show("exam");
-  else if (state.screen === "teacherReview") show("teacher");
+  else if (state.screen === "teacherReview") show(state.teacherReview?.returnScreen || "teacher");
   else if (state.screen === "dashboard") {
     if (state.dashboardStudent) {
       state.dashboardStudent = null;
@@ -1932,4 +2153,9 @@ show(state.screen);
   }
 })();
 
+window.setInterval(async () => {
+  if (!cloudStore || !state.access || !state.cloudError) return;
+  await refreshCloudData();
+  if (!state.cloudError) render();
+}, 30000);
 
