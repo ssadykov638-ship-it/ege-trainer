@@ -239,13 +239,13 @@
   async function loadStudents() {
     const session = readSession();
     try {
-      return await request("/rest/v1/profiles?select=id,role,name,login,created_at,hidden_from_teacher&role=eq.student&order=created_at.asc", {
+      return await request("/rest/v1/profiles?select=id,role,name,login,created_at,hidden_from_teacher,removed_from_teacher&role=eq.student&removed_from_teacher=eq.false&order=created_at.asc", {
         method: "GET",
         token: session?.access_token,
         prefer: ""
       });
     } catch (error) {
-      if (!String(error.message).includes("hidden_from_teacher")) throw error;
+      if (!/hidden_from_teacher|removed_from_teacher/.test(String(error.message))) throw error;
       return request("/rest/v1/profiles?select=id,role,name,login,created_at&role=eq.student&order=created_at.asc", {
         method: "GET",
         token: session?.access_token,
