@@ -1055,6 +1055,8 @@ h2 {
   justify-content: flex-end;
   gap: 4px;
   flex: 0 0 auto;
+  min-height: 24px;
+  line-height: 1;
 }
 
 .teacher-account-control input {
@@ -1079,6 +1081,8 @@ h2 {
 }
 
 .icon-action {
+  display: grid;
+  place-items: center;
   width: 24px;
   height: 24px;
   padding: 0;
@@ -1087,7 +1091,7 @@ h2 {
   background: #faf8f4;
   color: var(--muted);
   font-size: 15px;
-  line-height: 1;
+  line-height: 0;
 }
 
 .icon-action.is-danger {
