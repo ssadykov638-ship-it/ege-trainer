@@ -692,6 +692,32 @@ h2 {
   max-height: 560px;
 }
 
+.section-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  margin-top: 10px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--soft);
+}
+
+.section-tab {
+  min-height: 34px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.section-tab.is-active {
+  background: #fff;
+  color: var(--ink);
+}
+
 .digit-display {
   min-height: 48px;
   border: 1px solid var(--line);
@@ -972,6 +998,7 @@ h2 {
 }
 
 .teacher-accounts > span {
+
   margin: 0 0 6px;
   font-size: 12px;
   line-height: 1.3;
@@ -980,12 +1007,28 @@ h2 {
 
 .teacher-account-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 10px;
   min-height: 48px;
   padding: 7px 0;
   border-top: 1px solid var(--line);
+}
+
+.teacher-account-row.is-hidden-account {
+  opacity: 0.66;
+}
+
+.teacher-hidden-toggle {
+  width: 100%;
+  min-height: 30px;
+  margin: 3px 0 5px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .teacher-account-row > span:first-child {
@@ -1017,6 +1060,126 @@ h2 {
 .teacher-account-control b {
   font-size: 12px;
   white-space: nowrap;
+}
+
+.teacher-account-actions {
+  display: flex;
+  gap: 4px;
+  margin: 0 !important;
+}
+
+.icon-action {
+  width: 27px;
+  height: 27px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--soft);
+  color: var(--ink);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.icon-action.is-danger {
+  border-color: #efc8c1;
+  background: #fff0ed;
+  color: var(--bad);
+}
+
+.performance-card,
+.dashboard-attempt {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ink);
+  text-align: left;
+}
+
+.performance-card > span,
+.dashboard-attempt > span {
+  display: grid;
+  min-width: 0;
+  margin: 0;
+}
+
+.performance-card strong,
+.dashboard-attempt strong {
+  font-size: 14px;
+}
+
+.performance-card small,
+.dashboard-attempt small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.performance-metric {
+  text-align: right;
+}
+
+.performance-metric b,
+.dashboard-attempt > b {
+  color: var(--teal);
+  white-space: nowrap;
+}
+
+.is-positive {
+  color: var(--good) !important;
+}
+
+.is-negative {
+  color: var(--bad) !important;
+}
+
+.dashboard-summary {
+  padding: 13px;
+}
+
+.dashboard-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.dashboard-kpis span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px 5px;
+  border-radius: 9px;
+  background: var(--soft);
+  text-align: center;
+}
+
+.dashboard-kpis b {
+  font-size: 18px;
+}
+
+.dashboard-kpis small {
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.2;
+}
+
+.dashboard-verdict {
+  margin-top: 9px;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.dashboard-list {
+  max-height: 590px;
 }
 
 .teacher-details-button {
@@ -1182,4 +1345,10 @@ h2 {
   .teacher-account-row {
     grid-template-columns: minmax(0, 1fr) auto;
   }
+
+  .teacher-account-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
 }
+
