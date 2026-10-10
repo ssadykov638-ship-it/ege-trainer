@@ -10,7 +10,7 @@ on public.profiles for update
 using (public.is_teacher() and role = 'student')
 with check (public.is_teacher() and role = 'student');
 
-create or replace function public.delete_student_account(target_user_id uuid)
+create or replace function public.remove_student_from_teacher(target_user_id uuid)
 returns void
 language plpgsql
 security definer
@@ -34,7 +34,18 @@ begin
 end;
 $$;
 
-revoke all on function public.delete_student_account(uuid) from public, anon;
-grant execute on function public.delete_student_account(uuid) to authenticated;
+revoke all on function public.remove_student_from_teacher(uuid) from public, anon;
+grant execute on function public.remove_student_from_teacher(uuid) to authenticated;
+
+-- Neutralize the previous destructive function if an earlier migration installed it.
+create or replace function public.delete_student_account(target_user_id uuid)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  select public.remove_student_from_teacher(target_user_id);
+$$;
+revoke all on function public.delete_student_account(uuid) from public, anon, authenticated;
 grant update on public.profiles to authenticated;
 
