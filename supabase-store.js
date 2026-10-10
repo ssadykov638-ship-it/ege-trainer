@@ -266,7 +266,7 @@
 
   async function deleteStudentAccount(studentId) {
     const session = readSession();
-    await request("/rest/v1/rpc/delete_student_account", {
+    await request("/rest/v1/rpc/remove_student_from_teacher", {
       method: "POST",
       token: session?.access_token,
       headers: { Prefer: "return=minimal" },
