@@ -1,5 +1,5 @@
 const STORAGE_KEY = "ege-open-access-progress-v1";
-const APP_VERSION = "20260922-35";
+const APP_VERSION = "20261010-36";
 const ACCESS_KEY = "ege-access-session-v1";
 const AUTH_DB_KEY = "ege-auth-db-v1";
 const DEVICE_KEY = "ege-device-id-v1";
@@ -76,6 +76,9 @@ const state = {
   cloudSubmissions: [],
   cloudError: "",
   teacherReview: null,
+  teacherTab: "students",
+  showHiddenStudents: false,
+  dashboardStudent: null,
   variantNotice: "",
   authMode: "login",
   access: initialAccess
@@ -94,6 +97,7 @@ const nodes = {
     exam: document.querySelector("#examScreen"),
     result: document.querySelector("#resultScreen"),
     teacherReview: document.querySelector("#teacherReviewScreen"),
+    dashboard: document.querySelector("#dashboardScreen"),
     scan: document.querySelector("#scanScreen"),
     image: document.querySelector("#imageScreen"),
     teacher: document.querySelector("#teacherScreen")
@@ -138,6 +142,11 @@ const nodes = {
   accessSubmitButton: document.querySelector("#accessSubmitButton"),
   accessError: document.querySelector("#accessError"),
   teacherReport: document.querySelector("#teacherReport"),
+  teacherSectionTitle: document.querySelector("#teacherSectionTitle"),
+  teacherStudentsTab: document.querySelector("#teacherStudentsTab"),
+  teacherPerformanceTab: document.querySelector("#teacherPerformanceTab"),
+  dashboardSummary: document.querySelector("#dashboardSummary"),
+  dashboardList: document.querySelector("#dashboardList"),
   teacherReviewMeta: document.querySelector("#teacherReviewMeta"),
   teacherReviewTitle: document.querySelector("#teacherReviewTitle"),
   teacherReviewScore: document.querySelector("#teacherReviewScore"),
@@ -669,7 +678,7 @@ function show(screen) {
   state.screen = screen;
   Object.entries(nodes.screens).forEach(([name, node]) => node.classList.toggle("is-hidden", name !== screen));
   nodes.backButton.classList.toggle("is-hidden", screen === "access" || (screen === "subjects" && !state.examType));
-  nodes.hero.classList.toggle("is-hidden", screen === "access" || screen === "exam" || screen === "result" || screen === "scan" || screen === "image" || screen === "teacher" || screen === "teacherReview");
+  nodes.hero.classList.toggle("is-hidden", screen === "access" || screen === "exam" || screen === "result" || screen === "scan" || screen === "image" || screen === "teacher" || screen === "teacherReview" || screen === "dashboard");
   render();
 }
 
@@ -685,6 +694,7 @@ function render() {
   if (state.screen === "scan") renderScan();
   if (state.screen === "teacher") renderTeacher();
   if (state.screen === "teacherReview") renderTeacherReview();
+  if (state.screen === "dashboard") renderDashboard();
 }
 
 function renderAccess() {
@@ -704,6 +714,16 @@ function renderSubjects() {
     teacherCard.innerHTML = `<div><strong>Кабинет учителя</strong><span>Ученики, результаты и варианты для ДЗ</span><div class="badge-line"><b class="badge">${homeworkItems().length} в ДЗ</b></div></div><i>›</i>`;
     teacherCard.addEventListener("click", () => show("teacher"));
     nodes.subjectList.appendChild(teacherCard);
+  } else {
+    const dashboardCard = document.createElement("button");
+    dashboardCard.className = "card dashboard-entry";
+    dashboardCard.type = "button";
+    dashboardCard.innerHTML = `<div><strong>Моя успеваемость</strong><span>Результаты, динамика и последние попытки</span></div><i>›</i>`;
+    dashboardCard.addEventListener("click", () => {
+      state.dashboardStudent = null;
+      show("dashboard");
+    });
+    nodes.subjectList.appendChild(dashboardCard);
   }
   if (!state.examType) {
     for (const [examType, title, subtitle] of [["ege", "ЕГЭ", "11 класс"], ["oge", "ОГЭ", "9 класс"]]) {
@@ -978,6 +998,7 @@ function renderQuestionInput(question) {
       nodes.screenTitle.textContent = "Материал";
       show("image");
     };
+
     figure.addEventListener("click", openImage);
     figure.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") openImage();
@@ -1244,6 +1265,9 @@ function renderSourceNote() {
 function renderTeacher() {
   nodes.eyebrow.textContent = "ЕГЭ · админ";
   nodes.screenTitle.textContent = "Учитель";
+  nodes.teacherStudentsTab.classList.toggle("is-active", state.teacherTab === "students");
+  nodes.teacherPerformanceTab.classList.toggle("is-active", state.teacherTab === "performance");
+  nodes.teacherSectionTitle.textContent = state.teacherTab === "performance" ? "Успеваемость" : "Ученики и домашние задания";
   const db = readDb();
   nodes.teacherReport.innerHTML = "";
   if (state.cloudError) {
@@ -1255,24 +1279,42 @@ function renderTeacher() {
   const allStudents = cloudStore
     ? state.cloudStudents
     : db.students.map((student) => db.users.find((user) => user.id === student.userId)).filter(Boolean);
+  if (state.teacherTab === "performance") {
+    renderTeacherPerformance(allStudents);
+    return;
+  }
   const enrolledIds = new Set(cloudStore
     ? state.cloudStudentMemberships.map((membership) => membership.student_id)
     : allStudents.map((student) => student.id));
-  const visibleStudents = allStudents.filter((student) => enrolledIds.has(student.id));
+  const activeStudents = allStudents.filter((student) => !student.hidden_from_teacher);
+  const visibleStudents = activeStudents.filter((student) => enrolledIds.has(student.id));
   const submissions = (cloudStore ? state.cloudSubmissions : loadSubmissions())
     .filter((submission) => enrolledIds.has(submission.userId || submission.user_id));
   if (cloudStore) {
     const accounts = document.createElement("article");
     accounts.className = "review-item teacher-accounts";
     const title = document.createElement("strong");
-    title.textContent = `Аккаунты: ${allStudents.length} · получают ДЗ: ${visibleStudents.length}`;
+    const hiddenCount = allStudents.length - activeStudents.length;
+    title.textContent = `Аккаунты: ${activeStudents.length} · получают ДЗ: ${visibleStudents.length}`;
     accounts.appendChild(title);
     const note = document.createElement("span");
-    note.textContent = "Отключённые продолжают тренироваться самостоятельно.";
+    note.textContent = "Отключённые тренируются самостоятельно. Скрытые не попадают в списки и успеваемость.";
     accounts.appendChild(note);
-    allStudents.forEach((student) => {
-      const row = document.createElement("label");
+    if (hiddenCount) {
+      const hiddenToggle = document.createElement("button");
+      hiddenToggle.type = "button";
+      hiddenToggle.className = "teacher-hidden-toggle";
+      hiddenToggle.textContent = state.showHiddenStudents ? "Скрыть архив" : `Скрытые: ${hiddenCount}`;
+      hiddenToggle.addEventListener("click", () => {
+        state.showHiddenStudents = !state.showHiddenStudents;
+        renderTeacher();
+      });
+      accounts.appendChild(hiddenToggle);
+    }
+    allStudents.filter((student) => state.showHiddenStudents || !student.hidden_from_teacher).forEach((student) => {
+      const row = document.createElement("div");
       row.className = "teacher-account-row";
+      row.classList.toggle("is-hidden-account", Boolean(student.hidden_from_teacher));
       const identity = document.createElement("span");
       const name = document.createElement("b");
       name.textContent = student.name;
@@ -1301,7 +1343,46 @@ function renderTeacher() {
         }
       });
       control.append(checkbox, status);
-      row.append(identity, control);
+      const actions = document.createElement("span");
+      actions.className = "teacher-account-actions";
+      const hideButton = document.createElement("button");
+      hideButton.type = "button";
+      hideButton.className = "icon-action";
+      hideButton.title = student.hidden_from_teacher ? "Вернуть ученика" : "Скрыть ученика";
+      hideButton.setAttribute("aria-label", hideButton.title);
+      hideButton.textContent = student.hidden_from_teacher ? "↩" : "−";
+      hideButton.addEventListener("click", async () => {
+        hideButton.disabled = true;
+        try {
+          await cloudStore.setStudentHidden(student.id, !student.hidden_from_teacher);
+          await refreshCloudData();
+          renderTeacher();
+        } catch (error) {
+          hideButton.disabled = false;
+          status.textContent = error.message || "Не удалось скрыть";
+        }
+      });
+      const deleteButton = document.createElement("button");
+      deleteButton.type = "button";
+      deleteButton.className = "icon-action is-danger";
+      deleteButton.title = "Удалить аккаунт и его данные";
+      deleteButton.setAttribute("aria-label", deleteButton.title);
+      deleteButton.textContent = "×";
+      deleteButton.addEventListener("click", async () => {
+        const approved = confirm(`Удалить ученика «${student.name}»? Его аккаунт, ответы и результаты будут удалены без возможности восстановления. Другие ученики не пострадают.`);
+        if (!approved) return;
+        deleteButton.disabled = true;
+        try {
+          await cloudStore.deleteStudentAccount(student.id);
+          await refreshCloudData();
+          renderTeacher();
+        } catch (error) {
+          deleteButton.disabled = false;
+          status.textContent = error.message || "Не удалось удалить";
+        }
+      });
+      actions.append(hideButton, deleteButton);
+      row.append(identity, control, actions);
       accounts.appendChild(row);
     });
     nodes.teacherReport.appendChild(accounts);
@@ -1366,6 +1447,86 @@ function renderTeacher() {
       footer.appendChild(detailsButton);
     }
     nodes.teacherReport.appendChild(item);
+  });
+}
+
+function analyticsRows(progressMap) {
+  return Object.entries(progressMap || {}).flatMap(([variantId, progress]) => {
+    const variant = findVariant(variantId);
+    if (!variant || isScanVariant(variant)) return [];
+    return (progress.attempts || []).map((attempt) => ({
+      variantId,
+      title: variant.title,
+      score: Number(attempt.score) || 0,
+      total: Number(attempt.total) || variantLength(variant),
+      at: attempt.at || null
+    }));
+  }).sort((a, b) => new Date(a.at || 0) - new Date(b.at || 0));
+}
+
+function trendForRows(rows) {
+  if (!rows.length) return { average: 0, delta: 0, label: "Нет результатов" };
+  const percentages = rows.map((row) => row.total ? row.score / row.total * 100 : 0);
+  const average = Math.round(percentages.reduce((sum, value) => sum + value, 0) / percentages.length);
+  const recent = percentages.slice(-3);
+  const previous = percentages.slice(-6, -3);
+  const recentAverage = recent.reduce((sum, value) => sum + value, 0) / recent.length;
+  const previousAverage = previous.length ? previous.reduce((sum, value) => sum + value, 0) / previous.length : recentAverage;
+  const delta = Math.round(recentAverage - previousAverage);
+  return { average, delta, label: delta > 0 ? `Прогресс +${delta}%` : delta < 0 ? `Снижение ${delta}%` : "Результат стабилен" };
+}
+
+function renderTeacherPerformance(allStudents) {
+  const students = allStudents.filter((student) => !student.hidden_from_teacher);
+  const submissions = cloudStore ? state.cloudSubmissions : loadSubmissions();
+  if (!students.length) {
+    nodes.teacherReport.innerHTML = '<article class="review-item"><strong>Нет активных учеников</strong><p>Скрытых учеников можно вернуть во вкладке «Ученики».</p></article>';
+    return;
+  }
+  students.forEach((student) => {
+    const studentRows = submissions
+      .filter((item) => (item.userId || item.user_id) === student.id)
+      .map((item) => ({ score: item.score, total: item.total, at: item.at || item.submitted_at }));
+    const trend = trendForRows(studentRows);
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "performance-card";
+    card.innerHTML = `<span><strong>${student.name}</strong><small>${student.login}</small></span><span class="performance-metric"><b>${trend.average}%</b><small class="${trend.delta < 0 ? "is-negative" : "is-positive"}">${trend.label}</small></span>`;
+    card.addEventListener("click", async () => {
+      card.disabled = true;
+      try {
+        const progress = cloudStore ? await cloudStore.loadStudentProgress(student.id) : {};
+        state.dashboardStudent = { student, progress };
+        show("dashboard");
+      } catch (error) {
+        card.disabled = false;
+        card.querySelector(".performance-metric small").textContent = error.message || "Не удалось загрузить";
+      }
+    });
+    nodes.teacherReport.appendChild(card);
+  });
+}
+
+function renderDashboard() {
+  const teacherView = Boolean(state.dashboardStudent);
+  const student = teacherView ? state.dashboardStudent.student : state.access;
+  const progress = teacherView ? state.dashboardStudent.progress : state.progress;
+  const rows = analyticsRows(progress);
+  const trend = trendForRows(rows);
+  nodes.eyebrow.textContent = teacherView ? "Учитель · успеваемость" : "Личный кабинет";
+  nodes.screenTitle.textContent = student?.name || "Успеваемость";
+  nodes.dashboardSummary.innerHTML = `<p class="task-type">Динамика результатов</p><div class="dashboard-kpis"><span><b>${trend.average}%</b><small>средняя точность</small></span><span><b>${rows.length}</b><small>попыток</small></span><span><b class="${trend.delta < 0 ? "is-negative" : "is-positive"}">${trend.delta > 0 ? "+" : ""}${trend.delta}%</b><small>последние 3</small></span></div><p class="dashboard-verdict">${trend.label}</p>`;
+  nodes.dashboardList.innerHTML = "";
+  if (!rows.length) {
+    nodes.dashboardList.innerHTML = '<article class="review-item"><strong>Пока нет результатов</strong><p>После завершения первого интерактивного варианта здесь появится динамика.</p></article>';
+    return;
+  }
+  rows.slice().reverse().forEach((row) => {
+    const percent = row.total ? Math.round(row.score / row.total * 100) : 0;
+    const item = document.createElement("article");
+    item.className = "dashboard-attempt";
+    item.innerHTML = `<span><strong>${row.title}</strong><small>${row.at ? new Date(row.at).toLocaleDateString("ru-RU") : "дата не указана"}</small></span><b>${row.score}/${row.total} · ${percent}%</b>`;
+    nodes.dashboardList.appendChild(item);
   });
 }
 
@@ -1655,6 +1816,14 @@ function goBack() {
   else if (state.screen === "result") show("variants");
   else if (state.screen === "image") show("exam");
   else if (state.screen === "teacherReview") show("teacher");
+  else if (state.screen === "dashboard") {
+    if (state.dashboardStudent) {
+      state.dashboardStudent = null;
+      show("teacher");
+    } else {
+      show("subjects");
+    }
+  }
   else if (state.screen === "teacher") show("subjects");
 }
 
@@ -1667,6 +1836,14 @@ function completeCurrentScanVariant() {
 }
 
 nodes.backButton.addEventListener("click", goBack);
+nodes.teacherStudentsTab.addEventListener("click", () => {
+  state.teacherTab = "students";
+  renderTeacher();
+});
+nodes.teacherPerformanceTab.addEventListener("click", () => {
+  state.teacherTab = "performance";
+  renderTeacher();
+});
 nodes.authLoginModeButton.addEventListener("click", () => setAuthMode("login"));
 nodes.authRegisterModeButton.addEventListener("click", () => setAuthMode("register"));
 nodes.registerButton.addEventListener("click", registerAccount);
@@ -1720,3 +1897,5 @@ show(state.screen);
     console.warn("Cloud session init failed", error);
   }
 })();
+
+
