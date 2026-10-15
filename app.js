@@ -1425,7 +1425,7 @@ function renderTeacher() {
     title.textContent = `Аккаунты: ${activeStudents.length} · получают ДЗ: ${visibleStudents.length}`;
     accounts.appendChild(title);
     const note = document.createElement("span");
-    note.textContent = "Отключённые тренируются самостоятельно. Скрытые не попадают в списки и успеваемость.";
+    note.innerHTML = "Отключённые тренируются самостоятельно.<br>Скрытые не попадают в списки и успеваемость.";
     accounts.appendChild(note);
     const restoreRow = document.createElement("form");
     restoreRow.className = "teacher-restore-row";
