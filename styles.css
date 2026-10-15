@@ -690,6 +690,7 @@ h2 {
 
 .teacher-report {
   max-height: 560px;
+  overflow-x: hidden;
 }
 
 .section-tabs {
@@ -1227,13 +1228,25 @@ h2 {
 
 .teacher-tools {
   display: grid;
-  grid-template-columns: minmax(130px, 1.5fr) repeat(3, minmax(105px, 1fr)) auto auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 6px;
   margin-bottom: 9px;
+  width: 100%;
+  min-width: 0;
+}
+
+.teacher-tools input {
+  grid-column: 1 / -1;
+}
+
+.teacher-tools select:last-of-type {
+  grid-column: 1 / -1;
 }
 
 .teacher-tools input,
 .teacher-tools select {
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
   height: 32px;
   padding: 0 8px;
@@ -1511,14 +1524,6 @@ button.dashboard-attempt:focus-visible {
 }
 
 @media (max-width: 520px) {
-  .teacher-tools {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  }
-
-  .teacher-tools input {
-    grid-column: 1 / -1;
-  }
-
   .teacher-account-row {
     grid-template-columns: minmax(92px, 1fr) minmax(96px, auto) 51px;
     gap: 5px;
