@@ -3,170 +3,82 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>ЕГЭ и ОГЭ</title>
-    <link rel="stylesheet" href="./styles.css?v=20261016-43">
+    <title>ЕГЭ и ОГЭ — новый адрес</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "Times New Roman", Times, serif;
+        background: #f7f3e9;
+        color: #172026;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        display: grid;
+        min-height: 100vh;
+        margin: 0;
+        padding: 24px;
+        place-items: center;
+      }
+
+      main {
+        width: min(100%, 440px);
+        padding: 32px 28px;
+        border: 10px solid #172026;
+        border-radius: 28px;
+        background: #fffdf8;
+        text-align: center;
+        box-shadow: 0 18px 55px rgba(23, 32, 38, 0.14);
+      }
+
+      small {
+        color: #5f6f76;
+        font-size: 14px;
+      }
+
+      h1 {
+        margin: 8px 0 12px;
+        font-size: 30px;
+        line-height: 1.1;
+      }
+
+      p {
+        margin: 0 0 24px;
+        color: #46585f;
+        font-size: 17px;
+        line-height: 1.45;
+      }
+
+      a {
+        display: inline-flex;
+        min-height: 46px;
+        align-items: center;
+        justify-content: center;
+        padding: 10px 20px;
+        border-radius: 8px;
+        background: #167c72;
+        color: #fff;
+        font-size: 17px;
+        font-weight: 700;
+        text-decoration: none;
+      }
+
+      a:hover,
+      a:focus-visible {
+        background: #0f625a;
+      }
+    </style>
   </head>
   <body>
-    <main class="workspace">
-      <section class="phone-shell" aria-label="Прототип мобильного приложения">
-        <div class="app-screen">
-          <header class="topbar">
-            <button class="icon-button is-hidden" id="backButton" type="button" aria-label="Назад" title="Назад">‹</button>
-            <div class="title-block">
-              <p class="eyebrow" id="eyebrow">ЕГЭ · первая часть</p>
-              <h1 id="screenTitle">Выбор предмета</h1>
-            </div>
-          </header>
-
-          <section class="hero" id="hero">
-            <img src="./assets/study-header.png" alt="">
-            <div class="hero-overlay">
-              <div>
-                <span>Закрыто</span>
-                <strong id="doneValue">0</strong>
-              </div>
-              <div>
-                <span>Точность</span>
-                <strong id="accuracyValue">0%</strong>
-              </div>
-            </div>
-          </section>
-
-          <section class="screen" id="accessScreen" aria-label="Регистрация и вход">
-            <article class="task-card access-card">
-              <p class="task-type">Аккаунт</p>
-              <h2 id="authCardTitle">Вход</h2>
-              <div class="auth-tabs" role="tablist" aria-label="Режим аккаунта">
-                <button class="auth-tab is-active" id="authLoginModeButton" type="button" role="tab" aria-selected="true">Вход</button>
-                <button class="auth-tab" id="authRegisterModeButton" type="button" role="tab" aria-selected="false">Регистрация</button>
-              </div>
-              <label class="short-row is-hidden" id="studentNameRow">
-                <span>Имя</span>
-                <input id="studentNameInput" type="text" autocomplete="name" placeholder="Например: Иван">
-              </label>
-              <label class="short-row">
-                <span>Email</span>
-                <input id="loginInput" type="email" autocomplete="email" placeholder="ivan@example.com">
-              </label>
-              <label class="short-row">
-                <span>Пароль</span>
-                <span class="password-field">
-                  <input id="accessCodeInput" type="password" autocomplete="current-password" placeholder="Минимум 4 символа">
-                  <button class="password-toggle" id="passwordToggleButton" type="button" aria-label="Показать пароль" title="Показать пароль">👁</button>
-                </span>
-              </label>
-              <p class="access-error" id="accessError"></p>
-              <div class="access-actions">
-                <button class="primary-button access-submit" id="registerButton" type="button">Зарегистрироваться</button>
-                <button class="ghost-button access-submit" id="accessSubmitButton" type="button">Войти</button>
-              </div>
-            </article>
-          </section>
-
-          <section class="screen is-hidden" id="subjectScreen" aria-label="Выбор предмета">
-            <div class="screen-grid" id="subjectList"></div>
-          </section>
-
-          <section class="screen is-hidden" id="sourceScreen" aria-label="Выбор источника">
-            <div class="screen-grid" id="sourceList"></div>
-          </section>
-
-          <section class="screen is-hidden" id="variantScreen" aria-label="Выбор варианта">
-            <div class="variant-list" id="variantList"></div>
-          </section>
-
-          <section class="screen is-hidden" id="examScreen" aria-label="Прохождение варианта">
-            <div class="exam-head">
-              <span id="variantMeta"></span>
-              <strong id="questionCount"></strong>
-            </div>
-            <div class="progress-track" aria-label="Прогресс варианта">
-              <div class="progress-fill" id="variantProgress"></div>
-            </div>
-            <div class="question-nav" id="questionNav" aria-label="Навигация по заданиям"></div>
-            <article class="task-card">
-              <p class="task-type" id="taskType"></p>
-              <h2 id="questionTitle"></h2>
-              <div class="options" id="options"></div>
-            </article>
-            <div class="actions">
-              <button class="ghost-button" id="restartVariantButton" type="button">Заново</button>
-              <button class="ghost-button" id="skipButton" type="button">Пропустить</button>
-              <button class="primary-button" id="nextButton" type="button" disabled>Дальше</button>
-            </div>
-          </section>
-
-          <section class="screen is-hidden" id="resultScreen" aria-label="Итог варианта">
-            <article class="result-card">
-              <p class="task-type" id="resultMeta"></p>
-              <h2 id="resultTitle"></h2>
-              <p id="resultText"></p>
-            </article>
-            <div class="review-list is-hidden" id="reviewList"></div>
-            <div class="actions">
-              <button class="ghost-button review-toggle" id="mistakesReviewButton" type="button" aria-expanded="false">Разбор ошибок</button>
-              <button class="ghost-button" id="repeatButton" type="button">Повторить</button>
-              <button class="primary-button" id="nextVariantButton" type="button">Следующий</button>
-            </div>
-          </section>
-
-          <section class="screen is-hidden" id="teacherScreen" aria-label="Режим учителя">
-            <article class="task-card teacher-card">
-              <p class="task-type">Режим учителя</p>
-              <h2 id="teacherSectionTitle">Ученики и домашние задания</h2>
-            </article>
-            <div class="section-tabs" role="tablist" aria-label="Раздел кабинета учителя">
-              <button class="section-tab is-active" id="teacherStudentsTab" type="button" role="tab">Ученики</button>
-              <button class="section-tab" id="teacherPerformanceTab" type="button" role="tab">Успеваемость</button>
-            </div>
-            <div class="review-list teacher-report" id="teacherReport"></div>
-          </section>
-
-          <section class="screen is-hidden" id="dashboardScreen" aria-label="Успеваемость ученика">
-            <article class="task-card dashboard-summary" id="dashboardSummary"></article>
-            <div class="review-list dashboard-list" id="dashboardList"></div>
-          </section>
-
-          <section class="screen is-hidden" id="teacherReviewScreen" aria-label="Проверка работы ученика">
-            <article class="task-card teacher-review-summary">
-              <p class="task-type" id="teacherReviewMeta"></p>
-              <h2 id="teacherReviewTitle">Работа ученика</h2>
-              <p id="teacherReviewScore"></p>
-            </article>
-            <div class="review-list teacher-work-review" id="teacherReviewList"></div>
-          </section>
-
-          <section class="screen is-hidden" id="scanScreen" aria-label="Просмотр сканированного варианта">
-            <div class="exam-head">
-              <span id="scanMeta"></span>
-              <strong id="scanCount"></strong>
-            </div>
-            <div class="scan-pages" id="scanPages"></div>
-            <div class="actions">
-              <button class="primary-button" id="completeScanVariantButton" type="button">Отметить решенным</button>
-            </div>
-          </section>
-
-          <section class="screen is-hidden" id="imageScreen" aria-label="Просмотр изображения">
-            <figure class="image-viewer">
-              <img id="viewerImage" src="" alt="">
-            </figure>
-          </section>
-
-          <footer class="source-note">
-            <span id="sourceNote">ФИПИ открыт. Личные PDF-импорты хранятся локально и требуют ручной сверки OCR.</span>
-          </footer>
-        </div>
-      </section>
+    <main>
+      <small>Тренажёр ЕГЭ и ОГЭ</small>
+      <h1>Сайт переехал</h1>
+      <p>Приложение работает по новому, более короткому адресу. Аккаунты и результаты сохранены.</p>
+      <a href="https://egeoge-trainer.github.io/">Открыть новый сайт&nbsp;›</a>
     </main>
-    <script src="./supabase-config.js?v=20260917-14"></script>
-    <script src="./supabase-store.js?v=20261010-36"></script>
-    <script src="./local-interactive.js?v=20260917-14"></script>
-  <script src="./social-2027-interactive.js?v=20260929-40"></script>
-    <script src="./oge-interactive.js?v=20260917-14"></script>
-    <script src="./oge-history-interactive.js?v=20260922-30"></script>
-    <script src="./app.js?v=20261016-41"></script>
-    <script src="./patch.js?v=20260917-14"></script>
   </body>
 </html>
 
