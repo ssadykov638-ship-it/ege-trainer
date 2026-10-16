@@ -1373,6 +1373,78 @@ button.dashboard-attempt:focus-visible {
   font-size: 13px;
 }
 
+.teacher-student-folder {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto 12px;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.teacher-student-folder > span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.teacher-student-folder > span:not(:first-child) {
+  text-align: center;
+}
+
+.teacher-student-folder strong {
+  font-size: 14px;
+}
+
+.teacher-student-folder b {
+  color: var(--teal);
+  font-size: 13px;
+}
+
+.teacher-student-folder small {
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.teacher-student-folder i {
+  color: var(--teal);
+  font-size: 21px;
+  font-style: normal;
+}
+
+.teacher-student-folder:hover,
+.teacher-student-folder:focus-visible {
+  border-color: var(--teal);
+}
+
+.teacher-student-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+
+.teacher-student-header > span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.teacher-student-header small {
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-size: 10px;
+}
+
 .teacher-submission {
   display: grid;
   gap: 7px;
