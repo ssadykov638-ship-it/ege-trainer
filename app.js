@@ -82,6 +82,7 @@ const state = {
   teacherResultFilter: "all",
   teacherPeriod: "all",
   teacherSort: "name",
+  teacherStudentId: null,
   dashboardStudent: null,
   variantNotice: "",
   authMode: "login",
@@ -1417,6 +1418,12 @@ function renderTeacher() {
   const listedStudentIds = new Set(allStudents.map((student) => student.id));
   const submissions = (cloudStore ? state.cloudSubmissions : loadSubmissions())
     .filter((submission) => enrolledIds.has(submission.userId || submission.user_id) && listedStudentIds.has(submission.userId || submission.user_id));
+  const selectedStudent = loadedStudents.find((student) => student.id === state.teacherStudentId);
+  if (selectedStudent) {
+    nodes.teacherSectionTitle.textContent = selectedStudent.name;
+    renderTeacherStudentFolder(selectedStudent, submissions.filter((submission) => (submission.userId || submission.user_id) === selectedStudent.id));
+    return;
+  }
   if (cloudStore) {
     const accounts = document.createElement("article");
     accounts.className = "review-item teacher-accounts";
@@ -1573,55 +1580,152 @@ function renderTeacher() {
     nodes.teacherReport.appendChild(empty);
     return;
   }
-  submissions.slice().reverse().forEach((submission) => {
-    const item = document.createElement("article");
-    item.className = "review-item teacher-submission";
-    const date = new Date(submission.at || submission.submitted_at).toLocaleString("ru-RU", { dateStyle: "short", timeStyle: "short" });
-    const student = visibleStudents.find((item) => item.id === (submission.userId || submission.user_id));
-    const head = document.createElement("div");
-    head.className = "teacher-submission-head";
-    const heading = document.createElement("strong");
-    heading.textContent = `${submission.studentName || student?.name || "Ученик"} · ${submission.variantTitle || submission.variant_title}`;
-    const result = document.createElement("b");
-    result.textContent = `${submission.score}/${submission.total}`;
-    head.append(heading, result);
-    const meta = document.createElement("span");
-    meta.className = "teacher-submission-meta";
-    meta.textContent = `${submission.subjectTitle || submission.subject_title} · ${submission.sourceTitle || submission.source_title}${submission.homeworkId || submission.homework_id ? " · ДЗ" : ""} · ${date}`;
-    const footer = document.createElement("div");
-    footer.className = "teacher-submission-footer";
-    const email = document.createElement("span");
-    email.textContent = submission.login || student?.login || "нет данных";
-    footer.appendChild(email);
-    item.append(head, meta, footer);
-    if (cloudStore) {
-      const detailsButton = document.createElement("button");
-      detailsButton.type = "button";
-      detailsButton.className = "ghost-button teacher-details-button";
-      detailsButton.textContent = "Проверить ответы";
-      detailsButton.addEventListener("click", async () => {
-        detailsButton.disabled = true;
-        detailsButton.textContent = "Загрузка...";
-        try {
-          const userId = submission.userId || submission.user_id;
-          const variantId = submission.variantId || submission.variant_id;
-          const progress = await cloudStore.loadStudentVariantProgress(userId, variantId);
-          const variant = findVariant(variantId);
-          if (!variant || !progress?.answers) {
-            throw new Error("Подробные ответы для этой работы не найдены.");
-          }
-          state.teacherReview = { submission, student, progress, variant };
-          show("teacherReview");
-        } catch (error) {
-          detailsButton.textContent = error.message || "Не удалось загрузить ответы";
-        } finally {
-          detailsButton.disabled = false;
-        }
-      });
-      footer.appendChild(detailsButton);
-    }
-    nodes.teacherReport.appendChild(item);
+  const studentFolders = visibleStudents.map((student) => ({
+    student,
+    submissions: submissions.filter((submission) => (submission.userId || submission.user_id) === student.id)
+  })).filter((folder) => folder.submissions.length);
+  studentFolders.sort((a, b) => Math.max(...b.submissions.map(submissionTimestamp)) - Math.max(...a.submissions.map(submissionTimestamp)));
+  if (!studentFolders.length) {
+    const empty = document.createElement("article");
+    empty.className = "review-item";
+    empty.innerHTML = "<strong>Пока нет завершённых работ</strong><span>После завершения варианта работа появится внутри карточки ученика.</span>";
+    nodes.teacherReport.appendChild(empty);
+    return;
+  }
+  studentFolders.forEach(({ student, submissions: studentSubmissions }) => {
+    const latest = studentSubmissions.slice().sort((a, b) => submissionTimestamp(b) - submissionTimestamp(a))[0];
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "teacher-student-folder";
+    const identity = document.createElement("span");
+    const name = document.createElement("strong");
+    name.textContent = student.name;
+    const login = document.createElement("small");
+    login.textContent = student.login;
+    identity.append(name, login);
+    const workCount = document.createElement("span");
+    const count = document.createElement("b");
+    count.textContent = studentSubmissions.length;
+    const countLabel = document.createElement("small");
+    countLabel.textContent = pluralizeWorks(studentSubmissions.length);
+    workCount.append(count, countLabel);
+    const latestResult = document.createElement("span");
+    const score = document.createElement("b");
+    score.textContent = `${latest.score}/${latest.total}`;
+    const scoreLabel = document.createElement("small");
+    scoreLabel.textContent = "последняя";
+    latestResult.append(score, scoreLabel);
+    const arrow = document.createElement("i");
+    arrow.textContent = "›";
+    card.append(identity, workCount, latestResult, arrow);
+    card.addEventListener("click", () => {
+      state.teacherStudentId = student.id;
+      renderTeacher();
+    });
+    nodes.teacherReport.appendChild(card);
   });
+}
+
+function pluralizeWorks(count) {
+  const value = Math.abs(Number(count)) % 100;
+  const last = value % 10;
+  if (value > 10 && value < 20) return "работ";
+  if (last === 1) return "работа";
+  if (last > 1 && last < 5) return "работы";
+  return "работ";
+}
+
+function submissionTimestamp(submission) {
+  return new Date(submission.at || submission.submitted_at || 0).getTime();
+}
+
+function renderTeacherStudentFolder(student, submissions) {
+  const header = document.createElement("article");
+  header.className = "review-item teacher-student-header";
+  const back = document.createElement("button");
+  back.type = "button";
+  back.className = "compact-button";
+  back.textContent = "‹ К ученикам";
+  back.addEventListener("click", () => {
+    state.teacherStudentId = null;
+    renderTeacher();
+  });
+  const identity = document.createElement("span");
+  identity.innerHTML = `<strong>${student.name}</strong><small>${student.login}</small>`;
+  header.append(back, identity);
+  nodes.teacherReport.appendChild(header);
+  if (!submissions.length) {
+    const empty = document.createElement("article");
+    empty.className = "review-item";
+    empty.innerHTML = "<strong>Пока нет завершённых работ</strong><span>Решённые варианты ученика появятся здесь.</span>";
+    nodes.teacherReport.appendChild(empty);
+    return;
+  }
+  submissions.slice().sort((a, b) => submissionTimestamp(b) - submissionTimestamp(a)).forEach((submission) => {
+    nodes.teacherReport.appendChild(renderTeacherSubmissionCard(submission, student));
+  });
+}
+
+function renderTeacherSubmissionCard(submission, student) {
+  const item = document.createElement("article");
+  item.className = "review-item teacher-submission";
+  const date = new Date(submission.at || submission.submitted_at).toLocaleString("ru-RU", { dateStyle: "short", timeStyle: "short" });
+  const head = document.createElement("div");
+  head.className = "teacher-submission-head";
+  const heading = document.createElement("strong");
+  heading.textContent = submission.variantTitle || submission.variant_title;
+  const result = document.createElement("b");
+  result.textContent = `${submission.score}/${submission.total}`;
+  head.append(heading, result);
+  const meta = document.createElement("span");
+  meta.className = "teacher-submission-meta";
+  meta.textContent = `${submission.subjectTitle || submission.subject_title} · ${submission.sourceTitle || submission.source_title}${submission.homeworkId || submission.homework_id ? " · ДЗ" : ""} · ${date}`;
+  const footer = document.createElement("div");
+  footer.className = "teacher-submission-footer";
+  const mode = document.createElement("span");
+  mode.textContent = (submission.attemptMode || submission.attempt_mode) === "homework" ? "Домашняя работа" : "Самостоятельная работа";
+  footer.appendChild(mode);
+  item.append(head, meta, footer);
+  if (cloudStore) {
+    const detailsButton = document.createElement("button");
+    detailsButton.type = "button";
+    detailsButton.className = "ghost-button teacher-details-button";
+    detailsButton.textContent = "Проверить ответы";
+    detailsButton.addEventListener("click", () => openTeacherSubmission(submission, student, detailsButton));
+    footer.appendChild(detailsButton);
+  }
+  return item;
+}
+
+async function openTeacherSubmission(submission, student, button) {
+  button.disabled = true;
+  button.textContent = "Загрузка...";
+  try {
+    const userId = submission.userId || submission.user_id;
+    const variantId = submission.variantId || submission.variant_id;
+    const storedProgress = await cloudStore.loadStudentVariantProgress(userId, variantId);
+    const variant = findVariant(variantId);
+    if (!variant || !storedProgress) throw new Error("Подробные ответы для этой работы не найдены.");
+    const progress = progressForSubmission(storedProgress, submission, variant);
+    if (!progress) throw new Error("Ответы этой старой попытки не сохранились. Итоговый балл в карточке остаётся верным.");
+    state.teacherReview = { submission, student, progress, variant };
+    show("teacherReview");
+  } catch (error) {
+    button.textContent = error.message || "Не удалось загрузить ответы";
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function progressForSubmission(progress, submission, variant) {
+  const targetTime = submissionTimestamp(submission);
+  const attempts = (progress.attempts || []).filter((attempt) => attempt?.answers);
+  if (attempts.length) {
+    const attempt = attempts.slice().sort((a, b) => Math.abs(new Date(a.at || 0).getTime() - targetTime) - Math.abs(new Date(b.at || 0).getTime() - targetTime))[0];
+    if (Number(attempt.score) === Number(submission.score)) return { ...progress, answers: attempt.answers };
+  }
+  if (progress.answers && countCorrect(variant, progress) === Number(submission.score)) return progress;
+  return null;
 }
 
 function analyticsRows(progressMap) {
@@ -1985,6 +2089,7 @@ function recordSubmission(variant, progress) {
   const submissions = loadSubmissions();
   const homework = homeworkForVariant(variant);
   const existing = submissions.find((item) => item.variantId === variant.id && item.userId === state.access.id);
+  const attempt = latestAttempt(progress);
   const entry = {
     userId: state.access.id,
     studentName: state.access.name,
@@ -1995,10 +2100,10 @@ function recordSubmission(variant, progress) {
     variantId: variant.id,
     variantTitle: variant.title,
     homeworkId: homework?.id || null,
-    score: countCorrect(variant, progress),
-    total: variantLength(variant),
+    score: attempt?.score ?? countCorrect(variant, progress),
+    total: attempt?.total ?? variantLength(variant),
     attemptMode: homework ? "homework" : "practice",
-    at: new Date().toISOString()
+    at: attempt?.at || new Date().toISOString()
   };
   if (existing) Object.assign(existing, entry);
   else submissions.push(entry);
@@ -2079,6 +2184,10 @@ function goBack() {
       show("subjects");
     }
   }
+  else if (state.screen === "teacher" && state.teacherStudentId) {
+    state.teacherStudentId = null;
+    renderTeacher();
+  }
   else if (state.screen === "teacher") show("subjects");
 }
 
@@ -2093,10 +2202,12 @@ function completeCurrentScanVariant() {
 nodes.backButton.addEventListener("click", goBack);
 nodes.teacherStudentsTab.addEventListener("click", () => {
   state.teacherTab = "students";
+  state.teacherStudentId = null;
   renderTeacher();
 });
 nodes.teacherPerformanceTab.addEventListener("click", () => {
   state.teacherTab = "performance";
+  state.teacherStudentId = null;
   renderTeacher();
 });
 nodes.authLoginModeButton.addEventListener("click", () => setAuthMode("login"));
